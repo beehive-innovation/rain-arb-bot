@@ -189,6 +189,8 @@ describe("Test cli", async function () {
             "110",
             "--tx-gas",
             "123456789",
+            "--quote-gas",
+            "7777",
             "--rp-only",
         ]);
         const expected = {
@@ -211,6 +213,7 @@ describe("Test cli", async function () {
                 gasPriceMultiplier: 120,
                 gasLimitMultiplier: 110,
                 txGas: "123456789",
+                quoteGas: 7777n,
                 rpOnly: true,
             },
             options: {
@@ -218,6 +221,7 @@ describe("Test cli", async function () {
                 gasPriceMultiplier: 120,
                 gasLimitMultiplier: 110,
                 txGas: "123456789",
+                quoteGas: 7777n,
                 rpOnly: true,
             },
         };
@@ -236,6 +240,8 @@ describe("Test cli", async function () {
         assert.equal(result.config.gasLimitMultiplier, expected.config.gasLimitMultiplier);
         assert.equal(result.options.txGas, expected.options.txGas);
         assert.equal(result.config.txGas, expected.config.txGas);
+        assert.equal(result.options.quoteGas, expected.options.quoteGas);
+        assert.equal(result.config.quoteGas, expected.config.quoteGas);
         assert.equal(result.options.rpOnly, expected.options.rpOnly);
         assert.equal(result.config.rpOnly, expected.config.rpOnly);
     });

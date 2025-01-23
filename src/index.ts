@@ -217,6 +217,7 @@ export async function getConfig(
     config.gasPriceMultiplier = options.gasPriceMultiplier;
     config.gasLimitMultiplier = options.gasLimitMultiplier;
     config.txGas = options.txGas;
+    config.quoteGas = options.quoteGas;
     config.rpOnly = options.rpOnly;
 
     // init accounts

@@ -51,6 +51,7 @@ export type CliOptions = {
     gasPriceMultiplier: number;
     gasLimitMultiplier: number;
     txGas?: string;
+    quoteGas: bigint;
     rpOnly?: boolean;
 };
 
@@ -198,6 +199,7 @@ export type BotConfig = {
     gasPriceMultiplier: number;
     gasLimitMultiplier: number;
     txGas?: string;
+    quoteGas: bigint;
     rpOnly?: boolean;
     onFetchRequest?: (request: Request) => void;
     onFetchResponse?: (request: Response) => void;

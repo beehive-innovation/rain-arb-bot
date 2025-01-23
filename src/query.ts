@@ -257,6 +257,7 @@ export async function getOrderChanges(
     timeout?: number,
     span?: Span,
 ) {
+    timeout;
     let skip_ = skip;
     let count = 0;
     const allResults: SgTx[] = [];
@@ -267,7 +268,7 @@ export async function getOrderChanges(
             const res = await axios.post(
                 subgraph,
                 { query: getTxsQuery(startTimestamp, skip_) },
-                { headers: { "Content-Type": "application/json" }, timeout },
+                { headers: { "Content-Type": "application/json" } },
             );
             if (typeof res?.data?.data?.transactions !== "undefined") {
                 const txs = res.data.data.transactions;
@@ -282,7 +283,7 @@ export async function getOrderChanges(
                 break;
             }
         } catch (error) {
-            span?.addEvent(errorSnapshot(`Failed to get order changes ${subgraph}`, error));
+            span?.addEvent(errorSnapshot(`Failed to get orders changes ${subgraph}`, error));
             throw error;
         }
     }

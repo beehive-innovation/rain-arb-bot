@@ -286,6 +286,9 @@ export async function findOpp({
                     orderPairObject.takeOrders[0].takeOrder.order.owner.toLowerCase() &&
                 // only orders that (priceA x priceB < 1) can be profitbale
                 v.quote!.ratio.mul(orderPairObject.takeOrders[0].quote!.ratio).div(ONE).lt(ONE),
+        )
+        .sort((a, b) =>
+            a.quote!.ratio.lt(b.quote!.ratio) ? -1 : a.quote!.ratio.gt(b.quote!.ratio) ? 1 : 0,
         );
     if (!opposingOrders || !opposingOrders.length) throw undefined;
 

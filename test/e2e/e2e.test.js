@@ -540,27 +540,6 @@ for (let i = 0; i < testData.length; i++) {
                 }
 
                 // mock quote responses
-                await mockServer
-                    .forPost("/rpc")
-                    .once()
-                    .thenSendJsonRpcResult(
-                        encodeQuoteResponse([
-                            ...tokens.slice(1).map((v) => [
-                                true, // success
-                                v.depositAmount.mul("1" + "0".repeat(18 - v.decimals)), //maxout
-                                ethers.constants.Zero, // ratio
-                            ]),
-                            ...tokens
-                                .slice(1)
-                                .map(() => [
-                                    true,
-                                    tokens[0].depositAmount.mul(
-                                        "1" + "0".repeat(18 - tokens[0].decimals),
-                                    ),
-                                    ethers.constants.Zero,
-                                ]),
-                        ]),
-                    );
                 for (let i = 1; i < tokens.length; i++) {
                     const output = tokens[i].depositAmount.mul(
                         "1" + "0".repeat(18 - tokens[i].decimals),
@@ -603,6 +582,23 @@ for (let i = 0; i < testData.length; i++) {
                     await getOrderbookOwnersProfileMapFromSg(orders, viemClient, []),
                     false,
                 );
+                // mock init quotes
+                orders.forEach((ob) => {
+                    ob.forEach((pair) => {
+                        pair.takeOrders.forEach((takeOrder) => {
+                            takeOrder.quote = {
+                                ratio: ethers.constants.Zero,
+                                maxOutput: tokens
+                                    .find(
+                                        (t) =>
+                                            t.contract.address.toLowerCase() ===
+                                            pair.sellToken.toLowerCase(),
+                                    )
+                                    ?.depositAmount.mul("1" + "0".repeat(18 - ob.decimals)),
+                            };
+                        });
+                    });
+                });
                 const state = {
                     gasPrice: await bot.getGasPrice(),
                 };
@@ -907,20 +903,6 @@ for (let i = 0; i < testData.length; i++) {
                 for (let i = 0; i < tokens.length - 1; i++) {
                     t0.push(tokens[0]);
                 }
-                await mockServer
-                    .forPost("/rpc")
-                    .once()
-                    .thenSendJsonRpcResult(
-                        encodeQuoteResponse([
-                            ...[tokens[1], ...t0, ...tokens.slice(2)].flatMap((v) => [
-                                [
-                                    true, // success
-                                    v.depositAmount.mul("1" + "0".repeat(18 - v.decimals)), //maxout
-                                    ethers.constants.Zero, // ratio
-                                ],
-                            ]),
-                        ]),
-                    );
                 for (let i = 1; i < tokens.length; i++) {
                     const output = tokens[i].depositAmount.mul(
                         "1" + "0".repeat(18 - tokens[i].decimals),
@@ -962,6 +944,24 @@ for (let i = 0; i < testData.length; i++) {
                     await getOrderbookOwnersProfileMapFromSg(orders, viemClient, []),
                     false,
                 );
+
+                // mock init quotes
+                orders.forEach((ob) => {
+                    ob.forEach((pair) => {
+                        pair.takeOrders.forEach((takeOrder) => {
+                            takeOrder.quote = {
+                                ratio: ethers.constants.Zero,
+                                maxOutput: tokens
+                                    .find(
+                                        (t) =>
+                                            t.contract.address.toLowerCase() ===
+                                            pair.sellToken.toLowerCase(),
+                                    )
+                                    ?.depositAmount.mul("1" + "0".repeat(18 - ob.decimals)),
+                            };
+                        });
+                    });
+                });
                 const state = {
                     gasPrice: await bot.getGasPrice(),
                 };

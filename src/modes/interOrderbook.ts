@@ -284,12 +284,23 @@ export async function findOpp({
                 // filter out the same owner orders
                 const opposingOrders = {
                     ...v,
-                    takeOrders: v.takeOrders.filter(
-                        (e) =>
-                            e.takeOrder.order.owner.toLowerCase() !==
-                            orderPairObject.takeOrders[0].takeOrder.order.owner.toLowerCase(),
-                    ),
+                    takeOrders: v.takeOrders
+                        .filter(
+                            (e) =>
+                                e.takeOrder.order.owner.toLowerCase() !==
+                                    orderPairObject.takeOrders[0].takeOrder.order.owner.toLowerCase() &&
+                                e.quote &&
+                                e.quote.maxOutput.gt(0),
+                        )
+                        .sort((a, b) =>
+                            a.quote!.ratio.lt(b.quote!.ratio)
+                                ? -1
+                                : a.quote!.ratio.gt(b.quote!.ratio)
+                                  ? 1
+                                  : 0,
+                        ),
                 };
+                if (!opposingOrders.takeOrders.length) throw "";
                 return dryrun({
                     orderPairObject,
                     opposingOrders,
