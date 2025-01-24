@@ -2,11 +2,11 @@ import { Contract } from "ethers";
 import { PublicClient } from "viem";
 import { DataFetcher } from "sushi";
 import { Token } from "sushi/currency";
+import { extendSpanAttributes } from "../utils";
 import { findOpp as findInterObOpp } from "./interOrderbook";
 import { findOpp as findIntraObOpp } from "./intraOrderbook";
 import { findOppWithRetries as findRpOpp } from "./routeProcessor";
 import { BotConfig, BundledOrders, ViemClient, DryrunResult, SpanAttrs } from "../types";
-import { extendSpanAttributes } from "../utils";
 
 /**
  * The main entrypoint for the main logic to find opps.

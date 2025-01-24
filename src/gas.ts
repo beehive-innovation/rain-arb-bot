@@ -2,7 +2,7 @@ import { ChainId } from "sushi";
 import { BigNumber } from "ethers";
 import { getQuoteConfig } from "./utils";
 import { publicActionsL2 } from "viem/op-stack";
-import { encodeFunctionData, multicall3Abi, toHex } from "viem";
+import { encodeFunctionData, multicall3Abi } from "viem";
 import { BotConfig, BundledOrders, OperationState, RawTx, ViemClient } from "./types";
 import { ArbitrumNodeInterfaceAbi, ArbitrumNodeInterfaceAddress, OrderbookQuoteAbi } from "./abis";
 
@@ -103,10 +103,7 @@ export async function getQuoteGas(
 ): Promise<bigint> {
     if (config.chain.id === ChainId.ARBITRUM) {
         // build the calldata of a quote call
-        const quoteConfig = getQuoteConfig(orderDetails.takeOrders[0]) as any;
-        quoteConfig.inputIOIndex = BigInt(quoteConfig.inputIOIndex);
-        quoteConfig.outputIOIndex = BigInt(quoteConfig.outputIOIndex);
-        quoteConfig.order.evaluable.bytecode = toHex(quoteConfig.order.evaluable.bytecode);
+        const quoteConfig = getQuoteConfig(orderDetails.takeOrders[0]);
         const multicallConfig = {
             target: orderDetails.orderbook as `0x${string}`,
             allowFailure: true,

@@ -413,9 +413,6 @@ exports.assertError = async function (f, s, e) {
     assert.ok(didError, e);
 };
 
-exports.encodeQuoteResponse = function (quoteValue) {
-    const bytes = quoteValue.map((v) =>
-        ethers.utils.defaultAbiCoder.encode(["(bool,uint256,uint256)"], [[v[0], v[1], v[2]]]),
-    );
-    return ethers.utils.defaultAbiCoder.encode(["(bool,bytes)[]"], [bytes.map((v) => [true, v])]);
+exports.encodeQuoteResponse = function (quoteResult) {
+    return ethers.utils.defaultAbiCoder.encode(["(bool,uint256,uint256)"], [quoteResult]);
 };

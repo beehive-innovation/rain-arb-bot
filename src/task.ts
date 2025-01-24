@@ -1,10 +1,11 @@
 import fs from "fs";
-import { deployerAbi } from "./abis";
+import { DeployerAbi } from "./abis";
 import { BigNumber, utils } from "ethers";
 import { Dispair, ViemClient } from "./types";
-import { parseAbi, PublicClient, stringToHex } from "viem";
+import { PublicClient, stringToHex } from "viem";
 import { MetaStore, RainDocument } from "@rainlanguage/dotrain";
 
+const metaStore = new MetaStore(false);
 export const TaskEntryPoint = ["main"] as const;
 export const EnsureBountyDotrain = fs.readFileSync("./tasks/ensure-bounty.rain", {
     encoding: "utf8",
@@ -29,7 +30,7 @@ export async function getBountyEnsureRainlang(
     return await RainDocument.composeText(
         EnsureBountyDotrain,
         TaskEntryPoint as any as string[],
-        new MetaStore(),
+        metaStore,
         [
             ["sender", sender],
             ["input-to-eth-price", utils.formatUnits(inputToEthPrice)],
@@ -65,7 +66,7 @@ export async function getWithdrawEnsureRainlang(
     return await RainDocument.composeText(
         WithdrawEnsureBountyDotrain,
         TaskEntryPoint as any as string[],
-        new MetaStore(),
+        metaStore,
         [
             ["sender", sender],
             ["bot-address", botAddress],
@@ -90,7 +91,7 @@ export async function parseRainlang(
 ): Promise<string> {
     return await viemClient.readContract({
         address: dispair.deployer as `0x${string}`,
-        abi: parseAbi(deployerAbi),
+        abi: DeployerAbi,
         functionName: "parse2",
         args: [stringToHex(rainlang)],
     });

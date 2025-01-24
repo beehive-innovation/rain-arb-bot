@@ -541,12 +541,11 @@ export async function findOppWithRetries({
     if (allPromises.some((v) => v.status === "fulfilled")) {
         let choice;
         for (let i = 0; i < allPromises.length; i++) {
-            // from retries, choose the one that can clear the most
-            // ie its maxInput is the greatest
+            // from retries, choose the one that has the highest profit
             const prom = allPromises[i];
             if (prom.status === "fulfilled") {
                 if (!choice || choice.estimatedProfit.lt(prom.value.value!.estimatedProfit)) {
-                    // record the attributes of the choosing one
+                    // record the attributes
                     for (const attrKey in prom.value.spanAttributes) {
                         spanAttributes[attrKey] = prom.value.spanAttributes[attrKey];
                     }
