@@ -1,17 +1,24 @@
 import { Token } from "sushi/currency";
 import { Contract, ethers } from "ethers";
 import { getL1Fee, getTxFee } from "./gas";
-import { addWatchedToken } from "./account";
 import { containsNodeError, handleRevert } from "./error";
-import { ProcessPairHaltReason, ProcessPairReportStatus } from "./processOrders";
-import { BotConfig, BundledOrders, ProcessPairResult, RawTx, ViemClient } from "./types";
 import { Account, BaseError, Chain, SendTransactionParameters, TransactionReceipt } from "viem";
+import {
+    RawTx,
+    BotConfig,
+    ViemClient,
+    BundledOrders,
+    ProcessPairResult,
+    ProcessPairHaltReason,
+    ProcessPairReportStatus,
+} from "./types";
 import {
     sleep,
     toNumber,
     getIncome,
     shuffleArray,
     getTotalIncome,
+    addWatchedToken,
     withBigintSerializer,
     getActualClearAmount,
 } from "./utils";

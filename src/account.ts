@@ -1,15 +1,15 @@
 import { ChainId, RPParams } from "sushi";
 import { BigNumber, ethers } from "ethers";
+import { erc20Abi, PublicClient } from "viem";
 import { estimateGasCost, getTxFee } from "./gas";
 import { ErrorSeverity, errorSnapshot } from "./error";
 import { Native, Token, WNATIVE } from "sushi/currency";
 import { ROUTE_PROCESSOR_4_ADDRESS } from "sushi/config";
-import { getRpSwap, PoolBlackList, sleep } from "./utils";
 import { createViemClient, getDataFetcher } from "./config";
 import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
-import { erc20Abi, multicall3Abi, orderbookAbi, routeProcessor3Abi } from "./abis";
+import { getRpSwap, PoolBlackList, sleep, addWatchedToken } from "./utils";
 import { context, Context, SpanStatusCode, trace, Tracer } from "@opentelemetry/api";
-import { parseAbi, hexToNumber, numberToHex, PublicClient, NonceManagerSource } from "viem";
+import { MulticallAbi, orderbookAbi, routeProcessor3Abi, VaultBalanceAbi } from "./abis";
 import {
     BotConfig,
     CliOptions,
@@ -17,6 +17,7 @@ import {
     OwnedOrder,
     TokenDetails,
     OperationState,
+    BundledOrders,
 } from "./types";
 
 /** Standard base path for eth accounts */
@@ -434,7 +435,7 @@ export async function getBatchEthBalance(
                     viemClient.chain?.contracts?.multicall3?.address) as `0x${string}`,
                 allowFailure: false,
                 chainId: viemClient.chain.id,
-                abi: parseAbi(multicall3Abi),
+                abi: MulticallAbi,
                 functionName: "getEthBalance",
                 args: [v],
             })),
@@ -464,7 +465,7 @@ export async function getBatchTokenBalanceForAccount(
                 address: v.address as `0x${string}`,
                 allowFailure: false,
                 chainId: viemClient.chain.id,
-                abi: parseAbi(erc20Abi),
+                abi: erc20Abi,
                 functionName: "balanceOf",
                 args: [address],
             })),
@@ -886,23 +887,8 @@ export async function sweepToEth(
     }
 }
 
-export async function setWatchedTokens(account: ViemClient, watchedTokens: TokenDetails[]) {
+export function setWatchedTokens(account: ViemClient, watchedTokens: TokenDetails[]) {
     account.BOUNTY = [...watchedTokens];
-}
-
-export function addWatchedToken(
-    token: TokenDetails,
-    watchedTokens: TokenDetails[],
-    account?: ViemClient,
-) {
-    if (!watchedTokens.find((v) => v.address.toLowerCase() === token.address.toLowerCase())) {
-        watchedTokens.push(token);
-    }
-    if (account) {
-        if (!account.BOUNTY.find((v) => v.address.toLowerCase() === token.address.toLowerCase())) {
-            account.BOUNTY.push(token);
-        }
-    }
 }
 
 /**
@@ -1082,35 +1068,93 @@ export async function fundOwnedOrders(
 }
 
 /**
- * Creates a viem account nonce source of truth with "latest" block tag used for reading,
- * viem's default nonce manager uses "pending" block tag to read the nonce of an account
+ * Quotes order details that are already fetched and bundled by bundleOrder()
+ * @param config - Config obj
+ * @param orderDetails - Order details to quote
+ * @param multicallAddressOverride - Optional multicall address
  */
-export function noneSource(): NonceManagerSource {
-    return {
-        async get(parameters) {
-            const { address, client } = parameters;
-            return getTransactionCount(client as any, {
-                address,
-                blockTag: "latest",
+export async function checkOwnedOrders(
+    config: BotConfig,
+    orderDetails: BundledOrders[][],
+    multicallAddressOverride?: string,
+): Promise<OwnedOrder[]> {
+    const ownedOrders: any[] = [];
+    const result: OwnedOrder[] = [];
+    orderDetails.flat().forEach((v) => {
+        v.takeOrders.forEach((order) => {
+            if (
+                order.takeOrder.order.owner.toLowerCase() ===
+                    config.mainAccount.account.address.toLowerCase() &&
+                !ownedOrders.find(
+                    (e) =>
+                        e.orderbook.toLowerCase() === v.orderbook.toLowerCase() &&
+                        e.outputToken.toLowerCase() === v.sellToken.toLowerCase() &&
+                        e.order.takeOrder.order.validOutputs[
+                            e.order.takeOrder.outputIOIndex
+                        ].token.toLowerCase() ==
+                            order.takeOrder.order.validOutputs[
+                                order.takeOrder.outputIOIndex
+                            ].token.toLowerCase() &&
+                        ethers.BigNumber.from(
+                            e.order.takeOrder.order.validOutputs[e.order.takeOrder.outputIOIndex]
+                                .vaultId,
+                        ).eq(
+                            order.takeOrder.order.validOutputs[order.takeOrder.outputIOIndex]
+                                .vaultId,
+                        ),
+                )
+            ) {
+                ownedOrders.push({
+                    order,
+                    orderbook: v.orderbook,
+                    outputSymbol: v.sellTokenSymbol,
+                    outputToken: v.sellToken,
+                    outputDecimals: v.sellTokenDecimals,
+                });
+            }
+        });
+    });
+    if (!ownedOrders.length) return result;
+    try {
+        const multicallResult = await config.viemClient.multicall({
+            multicallAddress:
+                (multicallAddressOverride as `0x${string}` | undefined) ??
+                config.viemClient.chain?.contracts?.multicall3?.address,
+            allowFailure: false,
+            contracts: ownedOrders.map((v) => ({
+                address: v.orderbook,
+                allowFailure: false,
+                chainId: config.chain.id,
+                abi: VaultBalanceAbi,
+                functionName: "vaultBalance",
+                args: [
+                    // owner
+                    v.order.takeOrder.order.owner,
+                    // token
+                    v.order.takeOrder.order.validOutputs[v.order.takeOrder.outputIOIndex].token,
+                    // valut id
+                    v.order.takeOrder.order.validOutputs[v.order.takeOrder.outputIOIndex].vaultId,
+                ],
+            })),
+        });
+        for (let i = 0; i < multicallResult.length; i++) {
+            let vaultId =
+                ownedOrders[i].order.takeOrder.order.validOutputs[
+                    ownedOrders[i].order.takeOrder.outputIOIndex
+                ].vaultId;
+            if (vaultId instanceof BigNumber) vaultId = vaultId.toHexString();
+            result.push({
+                vaultId,
+                id: ownedOrders[i].order.id,
+                token: ownedOrders[i].outputToken,
+                symbol: ownedOrders[i].outputSymbol,
+                decimals: ownedOrders[i].outputDecimals,
+                orderbook: ownedOrders[i].orderbook,
+                vaultBalance: ethers.BigNumber.from(multicallResult[i]),
             });
-        },
-        set() {},
-    };
-}
-
-/**
- * Perfomrs a eth_getTransactionCount rpc request
- */
-async function getTransactionCount(
-    client: any,
-    { address, blockTag = "latest", blockNumber }: any,
-): Promise<number> {
-    const count = await client.request(
-        {
-            method: "eth_getTransactionCount",
-            params: [address, blockNumber ? numberToHex(blockNumber) : blockTag],
-        },
-        { dedupe: Boolean(blockNumber) },
-    );
-    return hexToNumber(count);
+        }
+    } catch (e) {
+        /**/
+    }
+    return result;
 }

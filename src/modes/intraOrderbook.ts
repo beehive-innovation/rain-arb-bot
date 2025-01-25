@@ -14,6 +14,8 @@ import {
     TakeOrderDetails,
 } from "../types";
 
+const obInterface = new ethers.utils.Interface(orderbookAbi);
+
 /**
  * Executes a extimateGas call for an intra-orderbook tx (clear2()), to determine if the tx is successfull ot not
  */
@@ -51,7 +53,6 @@ export async function dryrun({
 
     const inputBountyVaultId = "1";
     const outputBountyVaultId = "1";
-    const obInterface = new ethers.utils.Interface(orderbookAbi);
     const task = {
         evaluable: {
             interpreter: config.dispair.interpreter,

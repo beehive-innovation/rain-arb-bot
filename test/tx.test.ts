@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import fixtures from "./data";
 import { ethers } from "ethers";
-import { ProcessPairHaltReason, ProcessPairReportStatus } from "../src/processOrders";
+import { ProcessPairHaltReason, ProcessPairReportStatus } from "../src/types";
 import { InsufficientFundsError, InvalidInputRpcError, TransactionReceipt } from "viem";
 import {
     getNonce,

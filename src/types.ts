@@ -2,7 +2,6 @@ import { BigNumber } from "ethers";
 import { Token } from "sushi/currency";
 import { AttributeValue } from "@opentelemetry/api";
 import { DataFetcher, LiquidityProviders } from "sushi/router";
-import { ProcessPairHaltReason, ProcessPairReportStatus } from "./processOrders";
 import {
     Chain,
     Account,
@@ -15,6 +14,28 @@ import {
     FallbackTransport,
     SendTransactionParameters,
 } from "viem";
+
+/**
+ * Specifies reason that order process halted
+ */
+export enum ProcessPairHaltReason {
+    FailedToQuote = 1,
+    FailedToGetEthPrice = 2,
+    FailedToGetPools = 3,
+    TxFailed = 4,
+    TxMineFailed = 5,
+    TxReverted = 6,
+    UnexpectedError = 7,
+}
+
+/**
+ * Specifies status of an processed order report
+ */
+export enum ProcessPairReportStatus {
+    ZeroOutput = 1,
+    NoOpportunity = 2,
+    FoundOpportunity = 3,
+}
 
 export type BotError = {
     snapshot: string;

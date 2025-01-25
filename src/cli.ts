@@ -5,17 +5,23 @@ import { Command } from "commander";
 import { getMetaInfo } from "./config";
 import { BigNumber, ethers } from "ethers";
 import { Context } from "@opentelemetry/api";
+import { sleep, isBigNumberish } from "./utils";
 import { getOrderChanges, SgOrder } from "./query";
 import { Resource } from "@opentelemetry/resources";
 import { getOrderDetails, clear, getConfig } from ".";
 import { ErrorSeverity, errorSnapshot } from "./error";
 import { Tracer } from "@opentelemetry/sdk-trace-base";
-import { ProcessPairReportStatus } from "./processOrders";
-import { sleep, getOrdersTokens, isBigNumberish } from "./utils";
 import { CompressionAlgorithm } from "@opentelemetry/otlp-exporter-base";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { SEMRESATTRS_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { BotConfig, BundledOrders, CliOptions, OperationState, ViemClient } from "./types";
+import {
+    BotConfig,
+    CliOptions,
+    ViemClient,
+    BundledOrders,
+    OperationState,
+    ProcessPairReportStatus,
+} from "./types";
 import {
     sweepToEth,
     manageAccounts,
@@ -24,6 +30,7 @@ import {
     getBatchEthBalance,
 } from "./account";
 import {
+    getOrdersTokens,
     downscaleProtection,
     prepareOrdersForRound,
     getOrderbookOwnersProfileMapFromSg,
@@ -612,9 +619,6 @@ export const main = async (argv: any, version?: string) => {
             return Promise.reject(e);
         }
     });
-
-    // periodically fetch and set gas price in state (once every 20 seconds)
-    setInterval(() => getGasPrice(config, state), 20_000);
 
     const lastReadOrdersMap = options.subgraph.map((v) => ({
         sg: v,

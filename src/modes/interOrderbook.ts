@@ -13,6 +13,8 @@ import {
     extendSpanAttributes,
 } from "../utils";
 
+const obInterface = new ethers.utils.Interface(orderbookAbi);
+
 /**
  * Executes a extimateGas call for an inter-orderbook arb() tx, to determine if the tx is successfull ot not
  */
@@ -65,7 +67,6 @@ export async function dryrun({
           );
 
     // encode takeOrders2()
-    const obInterface = new ethers.utils.Interface(orderbookAbi);
     const encodedFN = obInterface.encodeFunctionData("takeOrders2", [
         {
             minimumInput: ethers.constants.One,
