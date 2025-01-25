@@ -4,7 +4,7 @@ import { BigNumber, ethers } from "ethers";
 import { getWithdrawEnsureBytecode } from "../config";
 import { BaseError, erc20Abi, PublicClient } from "viem";
 import { containsNodeError, errorSnapshot } from "../error";
-import { estimateProfit, scale18, withBigintSerializer } from "../utils";
+import { estimateProfit, scale18, withBigintSerializer, extendSpanAttributes } from "../utils";
 import {
     SpanAttrs,
     BotConfig,
@@ -292,7 +292,6 @@ export async function findOpp({
         );
     if (!opposingOrders || !opposingOrders.length) throw undefined;
 
-    const allErrorAttributes: string[] = [];
     const allNoneNodeErrors: (string | undefined)[] = [];
     const inputBalance = scale18(
         await viemClient.readContract({
@@ -329,10 +328,9 @@ export async function findOpp({
             });
         } catch (e: any) {
             allNoneNodeErrors.push(e?.value?.noneNodeError);
-            allErrorAttributes.push(JSON.stringify(e.spanAttributes));
+            extendSpanAttributes(spanAttributes, e.spanAttributes, "intraOrderbook." + i);
         }
     }
-    spanAttributes["intraOrderbook"] = allErrorAttributes;
     const noneNodeErrors = allNoneNodeErrors.filter((v) => !!v);
     if (allNoneNodeErrors.length && noneNodeErrors.length / allNoneNodeErrors.length > 0.5) {
         result.value = {

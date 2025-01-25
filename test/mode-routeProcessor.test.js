@@ -476,9 +476,15 @@ describe("Test route processor find opp", async function () {
                 },
                 reason: RouteProcessorDryrunHaltReason.NoOpportunity,
                 spanAttributes: {
-                    hops: [
-                        `{"amountIn":"${formatUnits(vaultBalance)}","amountOut":"${formatUnits(getAmountOut(vaultBalance), 6)}","marketPrice":"${formatUnits(getCurrentPrice(vaultBalance))}","route":${JSON.stringify(expectedRouteVisual)},"blockNumber":${oppBlockNumber},"stage":1,"isNodeError":false,"error":${JSON.stringify(errorSnapshot("", ethers.errors.UNPREDICTABLE_GAS_LIMIT))},"rawtx":${JSON.stringify(rawtx)}}`,
-                    ],
+                    "full.amountIn": formatUnits(vaultBalance),
+                    "full.amountOut": formatUnits(getAmountOut(vaultBalance), 6),
+                    "full.marketPrice": formatUnits(getCurrentPrice(vaultBalance)),
+                    "full.route": expectedRouteVisual,
+                    "full.blockNumber": oppBlockNumber,
+                    "full.stage": 1,
+                    "full.isNodeError": false,
+                    "full.error": errorSnapshot("", ethers.errors.UNPREDICTABLE_GAS_LIMIT),
+                    "full.rawtx": rawtx,
                 },
             };
             assert.deepEqual(error, expected);
@@ -509,7 +515,8 @@ describe("Test route processor find opp", async function () {
                 value: undefined,
                 reason: RouteProcessorDryrunHaltReason.NoRoute,
                 spanAttributes: {
-                    hops: [`{"amountIn":"${formatUnits(vaultBalance)}","route":"no-way"}`],
+                    "full.amountIn": formatUnits(vaultBalance),
+                    "full.route": "no-way",
                 },
             };
             assert.deepEqual(error, expected);
@@ -674,9 +681,15 @@ describe("Test find opp with retries", async function () {
                 },
                 reason: RouteProcessorDryrunHaltReason.NoOpportunity,
                 spanAttributes: {
-                    hops: [
-                        `{"amountIn":"${formatUnits(vaultBalance)}","amountOut":"${formatUnits(getAmountOut(vaultBalance), 6)}","marketPrice":"${formatUnits(getCurrentPrice(vaultBalance))}","route":${JSON.stringify(expectedRouteVisual)},"blockNumber":${oppBlockNumber},"stage":1,"isNodeError":false,"error":${JSON.stringify(errorSnapshot("", ethers.errors.UNPREDICTABLE_GAS_LIMIT))},"rawtx":${JSON.stringify(rawtx)}}`,
-                    ],
+                    "full.amountIn": formatUnits(vaultBalance),
+                    "full.amountOut": formatUnits(getAmountOut(vaultBalance), 6),
+                    "full.marketPrice": formatUnits(getCurrentPrice(vaultBalance)),
+                    "full.route": expectedRouteVisual,
+                    "full.blockNumber": oppBlockNumber,
+                    "full.stage": 1,
+                    "full.isNodeError": false,
+                    "full.error": errorSnapshot("", ethers.errors.UNPREDICTABLE_GAS_LIMIT),
+                    "full.rawtx": rawtx,
                 },
             };
             assert.deepEqual(error, expected);

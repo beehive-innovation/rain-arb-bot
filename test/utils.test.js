@@ -1,11 +1,18 @@
 const { assert } = require("chai");
 const testData = require("./data");
-const { clone, getTotalIncome, checkOwnedOrders, scale18, scale18To } = require("../src/utils");
 const {
     ethers,
-    utils: { hexlify, randomBytes },
     BigNumber,
+    utils: { hexlify, randomBytes },
 } = require("ethers");
+const {
+    clone,
+    scale18,
+    scale18To,
+    getTotalIncome,
+    checkOwnedOrders,
+    extendSpanAttributes,
+} = require("../src/utils");
 
 describe("Test utils functions", async function () {
     it("should clone correctly", async function () {
@@ -117,5 +124,25 @@ describe("Test utils functions", async function () {
         const result2 = scale18To(value2, decimals2);
         const expected2 = BigNumber.from("12345678900000");
         assert.deepEqual(result2, expected2);
+    });
+
+    it("should test extendSpanAttributes", async function () {
+        const newAttrs = {
+            a: 10,
+            b: true,
+            c: "some string",
+        };
+        const spanAttrs = {
+            oldKey: "some value",
+        };
+        extendSpanAttributes(spanAttrs, newAttrs, "header");
+
+        const expected = {
+            oldKey: "some value",
+            "header.a": 10,
+            "header.b": true,
+            "header.c": "some string",
+        };
+        assert.deepEqual(spanAttrs, expected);
     });
 });

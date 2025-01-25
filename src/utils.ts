@@ -1399,3 +1399,21 @@ export function scale18To(value: BigNumberish, targetDecimals: BigNumberish): Bi
         return BigNumber.from(value).div("1" + "0".repeat(18 - decimals));
     }
 }
+
+/**
+ * Adds the given k/v pairs to the spanAttributes by prepending the key with given header
+ */
+export function extendSpanAttributes(
+    spanAttributes: Record<string, any>,
+    newAttributes: Record<string, any>,
+    header: string,
+    excludeHeaderForKeys: string[] = [],
+) {
+    for (const attrKey in newAttributes) {
+        if (!excludeHeaderForKeys.includes(attrKey)) {
+            spanAttributes[header + "." + attrKey] = newAttributes[attrKey];
+        } else {
+            spanAttributes[attrKey] = newAttributes[attrKey];
+        }
+    }
+}

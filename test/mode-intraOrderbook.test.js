@@ -336,15 +336,11 @@ describe("Test intra-orderbook find opp", async function () {
                 },
                 reason: undefined,
                 spanAttributes: {
-                    intraOrderbook: [
-                        JSON.stringify({
-                            blockNumber: oppBlockNumber,
-                            stage: 1,
-                            isNodeError: false,
-                            error: errorSnapshot("", err),
-                            rawtx: JSON.stringify(rawtx),
-                        }),
-                    ],
+                    "intraOrderbook.0.blockNumber": oppBlockNumber,
+                    "intraOrderbook.0.stage": 1,
+                    "intraOrderbook.0.isNodeError": false,
+                    "intraOrderbook.0.error": errorSnapshot("", err),
+                    "intraOrderbook.0.rawtx": JSON.stringify(rawtx),
                 },
             };
             assert.deepEqual(error, expected);
