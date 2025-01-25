@@ -302,20 +302,14 @@ export function prepareOrdersForRound(
         const orderbookBundledOrders: BundledOrders[] = [];
         for (const [, ownerProfile] of ownersProfileMap) {
             let remainingLimit = ownerProfile.limit;
-            const activeOrdersProfiles = Array.from(ownerProfile.orders).filter((v) => v[1].active);
-            let remainingOrdersPairs = activeOrdersProfiles.filter(
-                (v) => v[1].takeOrders.length > 0,
-            );
-            // reset if all orders are already consumed
-            if (remainingOrdersPairs.length === 0) {
-                for (const [, orderProfile] of activeOrdersProfiles) {
-                    orderProfile.takeOrders.push(...orderProfile.consumedTakeOrders.splice(0));
-                }
-                remainingOrdersPairs = activeOrdersProfiles;
-            }
+            const activeOrdersProfiles = Array.from(ownerProfile.orders);
             // consume orders limits
-            for (const [orderHash, orderProfile] of remainingOrdersPairs) {
-                if (remainingLimit > 0) {
+            for (const [orderHash, orderProfile] of activeOrdersProfiles) {
+                if (
+                    remainingLimit > 0 &&
+                    orderProfile.active &&
+                    orderProfile.takeOrders.length > 0
+                ) {
                     const consumingOrderPairs = orderProfile.takeOrders.splice(0, remainingLimit);
                     remainingLimit -= consumingOrderPairs.length;
                     orderProfile.consumedTakeOrders.push(...consumingOrderPairs);
@@ -326,20 +320,22 @@ export function prepareOrdersForRound(
             // reset and start consuming again from top until limit is reached
             if (remainingLimit > 0) {
                 for (const [orderHash, orderProfile] of activeOrdersProfiles) {
-                    orderProfile.takeOrders.push(...orderProfile.consumedTakeOrders.splice(0));
-                    if (remainingLimit > 0) {
-                        const consumingOrderPairs = orderProfile.takeOrders.splice(
-                            0,
-                            remainingLimit,
-                        );
-                        remainingLimit -= consumingOrderPairs.length;
-                        orderProfile.consumedTakeOrders.push(...consumingOrderPairs);
-                        gatherPairs(
-                            orderbook,
-                            orderHash,
-                            consumingOrderPairs,
-                            orderbookBundledOrders,
-                        );
+                    if (orderProfile.active) {
+                        orderProfile.takeOrders.push(...orderProfile.consumedTakeOrders.splice(0));
+                        if (remainingLimit > 0) {
+                            const consumingOrderPairs = orderProfile.takeOrders.splice(
+                                0,
+                                remainingLimit,
+                            );
+                            remainingLimit -= consumingOrderPairs.length;
+                            orderProfile.consumedTakeOrders.push(...consumingOrderPairs);
+                            gatherPairs(
+                                orderbook,
+                                orderHash,
+                                consumingOrderPairs,
+                                orderbookBundledOrders,
+                            );
+                        }
                     }
                 }
             }

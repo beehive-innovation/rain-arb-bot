@@ -8,6 +8,7 @@ ENV DOCKER_TAG=$DOCKER_CHANNEL
 
 WORKDIR /arb-bot
 ADD . .
+RUN rm -rf test/*.js test/*.ts test/e2e
 RUN npm install
 RUN npm run build
 CMD node arb-bot
