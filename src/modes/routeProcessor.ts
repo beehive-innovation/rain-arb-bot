@@ -14,6 +14,7 @@ import {
     estimateProfit,
     visualizeRoute,
     withBigintSerializer,
+    // extendSpanAttributes,
 } from "../utils";
 
 /**
@@ -342,8 +343,6 @@ export async function findOpp({
         ethers.constants.Zero,
     );
     const maximumInput = BigNumber.from(initAmount.toString());
-
-    const allHopsAttributes: string[] = [];
     const allNoneNodeErrors: (string | undefined)[] = [];
     try {
         return await dryrun({
@@ -366,7 +365,8 @@ export async function findOpp({
         // the fail reason can only be no route in case all hops fail reasons are no route
         if (e.reason !== RouteProcessorDryrunHaltReason.NoRoute) noRoute = false;
         allNoneNodeErrors.push(e?.value?.noneNodeError);
-        allHopsAttributes.push(JSON.stringify(e.spanAttributes));
+        spanAttributes["full"] = JSON.stringify(e.spanAttributes);
+        // extendSpanAttributes(spanAttributes, e.spanAttributes, "full");
     }
     if (!hasPriceMatch.value) {
         const maxTradeSize = findMaxInput({
@@ -398,14 +398,12 @@ export async function findOpp({
             } catch (e: any) {
                 // the fail reason can only be no route in case all hops fail reasons are no route
                 if (e.reason !== RouteProcessorDryrunHaltReason.NoRoute) noRoute = false;
-                delete e.spanAttributes["rawtx"];
                 allNoneNodeErrors.push(e?.value?.noneNodeError);
-                allHopsAttributes.push(JSON.stringify(e.spanAttributes));
+                spanAttributes["partial"] = JSON.stringify(e.spanAttributes);
+                // extendSpanAttributes(spanAttributes, e.spanAttributes, "partial");
             }
         }
     }
-    // in case of no successfull hop, allHopsAttributes will be included
-    spanAttributes["hops"] = allHopsAttributes;
 
     if (noRoute) result.reason = RouteProcessorDryrunHaltReason.NoRoute;
     else {

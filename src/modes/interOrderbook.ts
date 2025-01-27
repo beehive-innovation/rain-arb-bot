@@ -4,8 +4,14 @@ import { BaseError, PublicClient } from "viem";
 import { getBountyEnsureBytecode } from "../config";
 import { BigNumber, Contract, ethers } from "ethers";
 import { containsNodeError, errorSnapshot } from "../error";
-import { estimateProfit, ONE18, scale18To, withBigintSerializer } from "../utils";
 import { BotConfig, BundledOrders, ViemClient, DryrunResult, SpanAttrs } from "../types";
+import {
+    ONE18,
+    scale18To,
+    estimateProfit,
+    withBigintSerializer,
+    // extendSpanAttributes,
+} from "../utils";
 
 /**
  * Executes a extimateGas call for an inter-orderbook arb() tx, to determine if the tx is successfull ot not
@@ -355,6 +361,11 @@ export async function findOpp({
         for (let i = 0; i < e.errors.length; i++) {
             allOrderbooksAttributes[opposingOrderbookOrders[i].orderbook] =
                 e.errors[i].spanAttributes;
+            // extendSpanAttributes(
+            //     spanAttributes,
+            //     e.errors[i].spanAttributes,
+            //     "againstOrderbooks." + opposingOrderbookOrders[i].orderbook,
+            // );
         }
         spanAttributes["againstOrderbooks"] = JSON.stringify(allOrderbooksAttributes);
         const noneNodeErrors = allNoneNodeErrors.filter((v) => !!v);

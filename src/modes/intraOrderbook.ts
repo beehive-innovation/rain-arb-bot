@@ -330,6 +330,7 @@ export async function findOpp({
         } catch (e: any) {
             allNoneNodeErrors.push(e?.value?.noneNodeError);
             allErrorAttributes.push(JSON.stringify(e.spanAttributes));
+            // extendSpanAttributes(spanAttributes, e.spanAttributes, "intraOrderbook." + i);
         }
     }
     spanAttributes["intraOrderbook"] = allErrorAttributes;

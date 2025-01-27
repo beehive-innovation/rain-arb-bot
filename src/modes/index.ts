@@ -6,6 +6,7 @@ import { findOpp as findInterObOpp } from "./interOrderbook";
 import { findOpp as findIntraObOpp } from "./intraOrderbook";
 import { findOppWithRetries as findRpOpp } from "./routeProcessor";
 import { BotConfig, BundledOrders, ViemClient, DryrunResult, SpanAttrs } from "../types";
+// import { extendSpanAttributes } from "../utils";
 
 /**
  * The main entrypoint for the main logic to find opps.
@@ -116,19 +117,34 @@ export async function findOpp({
             noneNodeError: undefined,
         };
         if ((allResults[0] as any)?.reason?.spanAttributes) {
-            spanAttributes["route-processor"] = JSON.stringify(
+            spanAttributes["routeProcessor"] = JSON.stringify(
                 (allResults[0] as any).reason.spanAttributes,
             );
+            // extendSpanAttributes(
+            //     spanAttributes,
+            //     (allResults[0] as any).reason.spanAttributes,
+            //     "routeProcessor",
+            // );
         }
         if ((allResults[1] as any)?.reason?.spanAttributes) {
-            spanAttributes["intra-orderbook"] = JSON.stringify(
+            spanAttributes["intraOrderbook"] = JSON.stringify(
                 (allResults[1] as any).reason.spanAttributes["intraOrderbook"],
             );
+            // extendSpanAttributes(
+            //     spanAttributes,
+            //     (allResults[1] as any).reason.spanAttributes,
+            //     "intraOrderbook",
+            // );
         }
         if ((allResults[2] as any)?.reason?.spanAttributes) {
-            spanAttributes["inter-orderbook"] = JSON.stringify(
+            spanAttributes["interOrderbook"] = JSON.stringify(
                 (allResults[2] as any).reason.spanAttributes,
             );
+            // extendSpanAttributes(
+            //     spanAttributes,
+            //     (allResults[2] as any).reason.spanAttributes,
+            //     "interOrderbook",
+            // );
         }
         if ((allResults[0] as any)?.reason?.value?.noneNodeError) {
             result.noneNodeError = (allResults[0] as any).reason.value.noneNodeError;

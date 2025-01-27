@@ -345,6 +345,11 @@ describe("Test intra-orderbook find opp", async function () {
                             rawtx: JSON.stringify(rawtx),
                         }),
                     ],
+                    // "intraOrderbook.0.blockNumber": oppBlockNumber,
+                    // "intraOrderbook.0.stage": 1,
+                    // "intraOrderbook.0.isNodeError": false,
+                    // "intraOrderbook.0.error": errorSnapshot("", err),
+                    // "intraOrderbook.0.rawtx": JSON.stringify(rawtx),
                 },
             };
             assert.deepEqual(error, expected);

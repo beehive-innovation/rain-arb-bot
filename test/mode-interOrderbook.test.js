@@ -348,6 +348,13 @@ describe("Test inter-orderbook find opp", async function () {
                             rawtx: JSON.stringify(rawtx),
                         },
                     }),
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.blockNumber`]: oppBlockNumber,
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.stage`]: 1,
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.isNodeError`]: false,
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.error`]: errorSnapshot("", err),
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.rawtx`]: JSON.stringify(rawtx),
+                    // [`againstOrderbooks.${opposingOrderbookAddress}.maxInput`]:
+                    //     vaultBalance.toString(),
                 },
             };
             assert.deepEqual(error, expected);

@@ -2,7 +2,8 @@ const { assert } = require("chai");
 const testData = require("./data");
 const { findOpp } = require("../src/modes");
 const { orderbookAbi } = require("../src/abis");
-const { clone, estimateProfit } = require("../src/utils");
+const { errorSnapshot } = require("../src/error");
+const { clone, estimateProfit, withBigintSerializer } = require("../src/utils");
 const {
     ethers,
     utils: { formatUnits },
@@ -348,31 +349,149 @@ describe("Test find opp", async function () {
             });
             assert.fail("expected to reject, but resolved");
         } catch (error) {
+            const expectedTakeOrdersConfigStruct = {
+                minimumInput: ethers.constants.One,
+                maximumInput: ethers.constants.MaxUint256,
+                maximumIORatio: ethers.constants.MaxUint256,
+                orders: [orderPairObject.takeOrders[0].takeOrder],
+                data: expectedRouteData,
+            };
+            const task = {
+                evaluable: {
+                    interpreter:
+                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
+                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
+                    bytecode: getBountyEnsureBytecode(
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.constants.Zero,
+                        ethers.constants.Zero,
+                        signer.account.address,
+                    ),
+                },
+                signedContext: [],
+            };
+            const rawtx = JSON.stringify(
+                {
+                    data: arb.interface.encodeFunctionData("arb3", [
+                        orderPairObject.orderbook,
+                        expectedTakeOrdersConfigStruct,
+                        task,
+                    ]),
+                    to: arb.address,
+                    gasPrice: gasPrice,
+                    from: signer.account.address,
+                },
+                withBigintSerializer,
+            );
+            const opposingMaxInput = vaultBalance
+                .mul(orderPairObject.takeOrders[0].quote.ratio)
+                .div(`1${"0".repeat(36 - orderPairObject.buyTokenDecimals)}`);
+            const opposingMaxIORatio = ethers.BigNumber.from(`1${"0".repeat(36)}`).div(
+                orderPairObject.takeOrders[0].quote.ratio,
+            );
+            const obInterface = new ethers.utils.Interface(orderbookAbi);
+            const encodedFN = obInterface.encodeFunctionData("takeOrders2", [
+                {
+                    minimumInput: ethers.constants.One,
+                    maximumInput: opposingMaxInput,
+                    maximumIORatio: opposingMaxIORatio,
+                    orders: opposingOrderPairObject.takeOrders.map((v) => v.takeOrder),
+                    data: "0x",
+                },
+            ]);
+            const expectedTakeOrdersConfigStruct2 = {
+                minimumInput: ethers.constants.One,
+                maximumInput: ethers.constants.MaxUint256,
+                maximumIORatio: ethers.constants.MaxUint256,
+                orders: [orderPairObject.takeOrders[0].takeOrder],
+                data: ethers.utils.defaultAbiCoder.encode(
+                    ["address", "address", "bytes"],
+                    [
+                        opposingOrderPairObject.orderbook,
+                        opposingOrderPairObject.orderbook,
+                        encodedFN,
+                    ],
+                ),
+            };
+            const task2 = {
+                evaluable: {
+                    interpreter:
+                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
+                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
+                    bytecode: getBountyEnsureBytecode(
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.utils.parseUnits(outputToEthPrice),
+                        ethers.constants.Zero,
+                        signer.account.address,
+                    ),
+                },
+                signedContext: [],
+            };
+            const rawtx2 = {
+                data: arb.interface.encodeFunctionData("arb3", [
+                    orderPairObject.orderbook,
+                    expectedTakeOrdersConfigStruct2,
+                    task2,
+                ]),
+                to: arb.address,
+                gasPrice,
+                from: signer.account.address,
+            };
             const expected = {
                 rawtx: undefined,
                 oppBlockNumber: undefined,
+                noneNodeError: errorSnapshot("", err),
                 spanAttributes: {
-                    "route-processor": {
-                        hops: [
-                            `{"amountIn":"${formatUnits(vaultBalance)}","marketPrice":"${formatUnits(getCurrentPrice(vaultBalance))}","route":${JSON.stringify(expectedRouteVisual)},"blockNumber":${oppBlockNumber},"error":"${ethers.errors.UNPREDICTABLE_GAS_LIMIT}"}`,
-                            `{"amountIn":"${formatUnits(vaultBalance.div(2))}","marketPrice":"${formatUnits(getCurrentPrice(vaultBalance.div(2)))}","route":${JSON.stringify(expectedRouteVisual)},"blockNumber":${oppBlockNumber}}`,
-                            `{"amountIn":"${formatUnits(vaultBalance.div(4))}","marketPrice":"${formatUnits(getCurrentPrice(vaultBalance.div(4)))}","route":${JSON.stringify(expectedRouteVisual)},"blockNumber":${oppBlockNumber}}`,
-                        ],
-                    },
-                    "inter-orderbook": {
-                        againstOrderbooks: {
+                    routeProcessor: JSON.stringify({
+                        full: JSON.stringify({
+                            amountIn: formatUnits(vaultBalance),
+                            amountOut: formatUnits(getAmountOut(vaultBalance), 6),
+                            marketPrice: formatUnits(getCurrentPrice(vaultBalance)),
+                            route: expectedRouteVisual,
+                            blockNumber: oppBlockNumber,
+                            stage: 1,
+                            isNodeError: false,
+                            error: errorSnapshot("", err),
+                            rawtx: rawtx,
+                        }),
+                    }),
+                    interOrderbook: JSON.stringify({
+                        againstOrderbooks: JSON.stringify({
                             [opposingOrderbookAddress]: {
-                                amountIn: formatUnits(vaultBalance),
-                                amountOut: formatUnits(getAmountOut(vaultBalance), 6),
+                                maxInput: vaultBalance.toString(),
                                 blockNumber: oppBlockNumber,
-                                error: err,
+                                stage: 1,
+                                isNodeError: false,
+                                error: errorSnapshot("", err),
+                                rawtx: JSON.stringify(rawtx2, withBigintSerializer),
                             },
-                        },
-                    },
+                        }),
+                    }),
+                    // // rp span attrs
+                    // "routeProcessor.full.stage": 1,
+                    // "routeProcessor.full.rawtx": rawtx,
+                    // "routeProcessor.full.isNodeError": false,
+                    // "routeProcessor.full.route": expectedRouteVisual,
+                    // "routeProcessor.full.blockNumber": oppBlockNumber,
+                    // "routeProcessor.full.error": errorSnapshot("", err),
+                    // "routeProcessor.full.amountIn": formatUnits(vaultBalance),
+                    // "routeProcessor.full.amountOut": formatUnits(getAmountOut(vaultBalance), 6),
+                    // "routeProcessor.full.marketPrice": formatUnits(getCurrentPrice(vaultBalance)),
+
+                    // // inter-ob span attrs
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.stage`]: 1,
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.isNodeError`]: false,
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.blockNumber`]:
+                    //     oppBlockNumber,
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.rawtx`]:
+                    //     JSON.stringify(rawtx2, withBigintSerializer),
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.maxInput`]:
+                    //     vaultBalance.toString(),
+                    // [`interOrderbook.againstOrderbooks.${opposingOrderbookAddress}.error`]:
+                    //     errorSnapshot("", err),
                 },
             };
-            assert.deepEqual(error.rawtx, expected.rawtx);
-            assert.deepEqual(error.oppBlockNumber, expected.oppBlockNumber);
+            assert.deepEqual(error, expected);
         }
     });
 });
