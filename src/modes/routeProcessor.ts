@@ -1,10 +1,9 @@
-import { recordGasEstAttrs } from ".";
 import { Token } from "sushi/currency";
 import { estimateGasCost } from "../gas";
 import { ChainId, DataFetcher, Router } from "sushi";
 import { BigNumber, Contract, ethers } from "ethers";
 import { containsNodeError, errorSnapshot } from "../error";
-import { getBountyEnsureRainlang, parseRainlang } from "../task";
+import { getBountyEnsureRainlang, parseRainlang } from "../config";
 import { BaseError, ExecutionRevertedError, PublicClient } from "viem";
 import { SpanAttrs, BotConfig, ViemClient, DryrunResult, BundledOrders } from "../types";
 import {
@@ -191,7 +190,13 @@ export async function dryrun({
                 .div(100);
 
             // include dryrun headroom gas estimation in otel logs
-            recordGasEstAttrs(spanAttributes, estimation, config, true);
+            spanAttributes["gasEst.headroom.gasLimit"] = estimation.gas.toString();
+            spanAttributes["gasEst.headroom.totalCost"] = estimation.totalGasCost.toString();
+            spanAttributes["gasEst.headroom.gasPrice"] = estimation.gasPrice.toString();
+            if (config.isSpecialL2) {
+                spanAttributes["gasEst.headroom.l1Cost"] = estimation.l1Cost.toString();
+                spanAttributes["gasEst.headroom.l1GasPrice"] = estimation.l1GasPrice.toString();
+            }
         } catch (e) {
             // reason, code, method, transaction, error, stack, message
             const isNodeError = containsNodeError(e as BaseError);
@@ -263,7 +268,13 @@ export async function dryrun({
                 gasCost = gasLimit.mul(gasPrice).add(estimation.l1Cost);
 
                 // include dryrun final gas estimation in otel logs
-                recordGasEstAttrs(spanAttributes, estimation, config, false);
+                spanAttributes["gasEst.final.gasLimit"] = estimation.gas.toString();
+                spanAttributes["gasEst.final.totalCost"] = estimation.totalGasCost.toString();
+                spanAttributes["gasEst.final.gasPrice"] = estimation.gasPrice.toString();
+                if (config.isSpecialL2) {
+                    spanAttributes["gasEst.final.l1Cost"] = estimation.l1Cost.toString();
+                    spanAttributes["gasEst.final.l1GasPrice"] = estimation.l1GasPrice.toString();
+                }
                 task.evaluable.bytecode = await parseRainlang(
                     await getBountyEnsureRainlang(
                         ethers.utils.parseUnits(ethPrice),
@@ -513,12 +524,11 @@ export async function findOppWithRetries({
     if (allPromises.some((v) => v.status === "fulfilled")) {
         let choice;
         for (let i = 0; i < allPromises.length; i++) {
-            // from retries, choose the one that can clear the most
-            // ie its maxInput is the greatest
+            // from retries, choose the one that has the highest profit
             const prom = allPromises[i];
             if (prom.status === "fulfilled") {
                 if (!choice || choice.estimatedProfit.lt(prom.value.value!.estimatedProfit)) {
-                    // record the attributes of the choosing one
+                    // record the attributes
                     for (const attrKey in prom.value.spanAttributes) {
                         spanAttributes[attrKey] = prom.value.spanAttributes[attrKey];
                     }

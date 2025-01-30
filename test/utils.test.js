@@ -1,18 +1,6 @@
 const { assert } = require("chai");
-const testData = require("./data");
-const {
-    ethers,
-    BigNumber,
-    utils: { hexlify, randomBytes },
-} = require("ethers");
-const {
-    clone,
-    scale18,
-    scale18To,
-    getTotalIncome,
-    checkOwnedOrders,
-    extendSpanAttributes,
-} = require("../src/utils");
+const { ethers, BigNumber } = require("ethers");
+const { clone, scale18, scale18To, getTotalIncome, extendSpanAttributes } = require("../src/utils");
 
 describe("Test utils functions", async function () {
     it("should clone correctly", async function () {
@@ -57,41 +45,6 @@ describe("Test utils functions", async function () {
         );
         const expected = ethers.utils.parseUnits((10 * 1.25 + 20 * 0.8).toString());
         assert.equal(result.toString(), expected.toString());
-    });
-
-    it("should check owned orders", async function () {
-        const owner = hexlify(randomBytes(20));
-        const { orderPairObject1: order1, opposingOrderPairObject: order2 } = testData;
-        order1.takeOrders[0].takeOrder.order.owner = owner;
-        order2.takeOrders[0].takeOrder.order.owner = owner;
-        const orders = [order1, order2];
-        const config = {
-            chain: {
-                id: 123,
-            },
-            mainAccount: {
-                account: {
-                    address: owner,
-                },
-            },
-            viemClient: {
-                multicall: async () => [0n, 10n],
-            },
-        };
-        const result = await checkOwnedOrders(config, orders, hexlify(randomBytes(20)));
-        const expected = orders.map((v, i) => ({
-            id: v.takeOrders[0].id,
-            vaultId:
-                v.takeOrders[0].takeOrder.order.validOutputs[
-                    v.takeOrders[0].takeOrder.outputIOIndex
-                ].vaultId,
-            token: v.sellToken,
-            symbol: v.sellTokenSymbol,
-            decimals: v.sellTokenDecimals,
-            orderbook: v.orderbook,
-            vaultBalance: ethers.BigNumber.from(i * 10),
-        }));
-        assert.deepEqual(result, expected);
     });
 
     it("should scale to 18", async function () {

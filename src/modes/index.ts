@@ -146,22 +146,3 @@ export async function findOpp({
         throw result;
     }
 }
-
-/**
- * Records gas estimates for otel span attributes
- */
-export function recordGasEstAttrs(
-    spanAttributes: Record<string, any>,
-    estimation: any,
-    config: BotConfig,
-    headroom: boolean,
-) {
-    const header = headroom ? "headroom" : "final";
-    spanAttributes[`gasEst.${header}.gasLimit`] = estimation.gas.toString();
-    spanAttributes[`gasEst.${header}.totalCost`] = estimation.totalGasCost.toString();
-    spanAttributes[`gasEst.${header}.gasPrice`] = estimation.gasPrice.toString();
-    if (config.isSpecialL2) {
-        spanAttributes[`gasEst.${header}.l1Cost`] = estimation.l1Cost.toString();
-        spanAttributes[`gasEst.${header}.l1GasPrice`] = estimation.l1GasPrice.toString();
-    }
-}

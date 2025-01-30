@@ -48,7 +48,7 @@ module.exports = [
         ],
 
         // deposist amounts per token pair order
-        ["1", "100", "100"],
+        ["100", "100", "100", "100"],
     ],
     [
         ChainId.ARBITRUM,

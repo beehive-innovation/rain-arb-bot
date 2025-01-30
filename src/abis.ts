@@ -1,17 +1,5 @@
 import { parseAbi } from "viem";
 
-/**
- * Minimal ABI for ERC20 contract only including Transfer event
- */
-export const erc20Abi = [
-    "event Transfer(address indexed from, address indexed to, uint256 value)",
-    "function symbol() public view returns (string memory)",
-    "function transfer(address to, uint256 amount) external returns (bool)",
-    "function balanceOf(address account) external view returns (uint256)",
-    "function approve(address spender, uint256 amount) external returns (bool)",
-    "function allowance(address owner, address spender) external view returns (uint256)",
-] as const;
-
 // structs used in the orderbook and arb abis
 export const IO = "(address token, uint8 decimals, uint256 vaultId)" as const;
 export const EvaluableV3 = "(address interpreter, address store, bytes bytecode)" as const;
@@ -108,6 +96,10 @@ export const DefaultArbEvaluable = {
 
 export const TakeOrderV2EventAbi = parseAbi([orderbookAbi[13]]);
 export const OrderbookQuoteAbi = parseAbi([orderbookAbi[14]]);
+export const VaultBalanceAbi = parseAbi([orderbookAbi[3]]);
+export const AfterClearAbi = parseAbi([orderbookAbi[2]]);
+export const DeployerAbi = parseAbi(deployerAbi);
+export const MulticallAbi = parseAbi(multicall3Abi);
 
 /**
  * Arbitrum node interface address, used to get L1 gas limit.

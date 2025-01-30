@@ -10,10 +10,10 @@ const { ethers, viem, network } = require("hardhat");
 const { Resource } = require("@opentelemetry/resources");
 const { trace, context } = require("@opentelemetry/api");
 const { publicActions, walletActions } = require("viem");
+const { ProcessPairReportStatus } = require("../../src/types");
 const ERC20Artifact = require("../abis/ERC20Upgradeable.json");
 const { abi: orderbookAbi } = require("../abis/OrderBook.json");
 const helpers = require("@nomicfoundation/hardhat-network-helpers");
-const { ProcessPairReportStatus } = require("../../src/processOrders");
 const { getChainConfig, getDataFetcher } = require("../../src/config");
 const { OTLPTraceExporter } = require("@opentelemetry/exporter-trace-otlp-http");
 const { SEMRESATTRS_SERVICE_NAME } = require("@opentelemetry/semantic-conventions");
@@ -26,7 +26,6 @@ const {
     randomUint256,
     mockSgFromEvent,
     genericArbrbDeploy,
-    encodeQuoteResponse,
     deployOrderBookNPE2,
     rainterpreterNPE2Deploy,
     rainterpreterStoreNPE2Deploy,
@@ -222,31 +221,6 @@ for (let i = 0; i < testData.length; i++) {
                     );
                 }
 
-                // mock quote responses
-                await mockServer
-                    .forPost("/rpc")
-                    .once()
-                    .thenSendJsonRpcResult(
-                        encodeQuoteResponse(
-                            tokens.slice(1).map((v) => [
-                                true, // success
-                                v.depositAmount.mul("1" + "0".repeat(18 - v.decimals)), //maxout
-                                ethers.constants.Zero, // ratio
-                            ]),
-                        ),
-                    );
-                for (let i = 1; i < tokens.length; i++) {
-                    const output = tokens[i].depositAmount.mul(
-                        "1" + "0".repeat(18 - tokens[i].decimals),
-                    );
-                    await mockServer
-                        .forPost("/rpc")
-                        .withBodyIncluding(owners[i].address.substring(2).toLowerCase())
-                        .thenSendJsonRpcResult(
-                            encodeQuoteResponse([[true, output, ethers.constants.Zero]]),
-                        );
-                }
-
                 // run the clearing process
                 config.isTest = true;
                 config.shuffle = false;
@@ -263,7 +237,6 @@ for (let i = 0; i < testData.length; i++) {
                 config.dataFetcher = dataFetcher;
                 config.accounts = [];
                 config.mainAccount = bot;
-                config.quoteRpc = [mockServer.url + "/rpc"];
                 config.gasPriceMultiplier = 107;
                 config.gasLimitMultiplier = 100;
                 config.dispair = {
@@ -425,15 +398,14 @@ for (let i = 0; i < testData.length; i++) {
                         }
                     }
                     tokens[i].vaultId = ethers.BigNumber.from(randomUint256());
-                    tokens[i].depositAmount =
-                        i > 0
-                            ? (tokens[i].depositAmount = ethers.utils.parseUnits(
-                                  deposits[i] ?? "100",
-                                  tokens[i].decimals,
-                              ))
-                            : (tokens[i].depositAmount = ethers.utils
-                                  .parseUnits(deposits[i] ?? "100", tokens[i].decimals)
-                                  .div(tokens.length - 1));
+                    i > 0
+                        ? (tokens[i].depositAmount = ethers.utils.parseUnits(
+                              deposits[i] ?? "100",
+                              tokens[i].decimals,
+                          ))
+                        : (tokens[i].depositAmount = ethers.utils
+                              .parseUnits(deposits[i] ?? "100", tokens[i].decimals)
+                              .div(tokens.length - 1));
                     owners.push(await ethers.getImpersonatedSigner(addressesWithBalance[i]));
                     await network.provider.send("hardhat_setBalance", [
                         addressesWithBalance[i],
@@ -558,25 +530,6 @@ for (let i = 0; i < testData.length; i++) {
                     );
                 }
 
-                // mock quote responses
-                for (let i = 1; i < tokens.length; i++) {
-                    const output = tokens[i].depositAmount.mul(
-                        "1" + "0".repeat(18 - tokens[i].decimals),
-                    );
-                    await mockServer
-                        .forPost("/rpc")
-                        .withBodyIncluding(owners[i].address.substring(2).toLowerCase())
-                        .thenSendJsonRpcResult(
-                            encodeQuoteResponse([[true, output, ethers.constants.Zero]]),
-                        );
-                }
-                await mockServer
-                    .forPost("/rpc")
-                    .withBodyIncluding(owners[0].address.substring(2).toLowerCase())
-                    .thenSendJsonRpcResult(
-                        encodeQuoteResponse([[true, ethers.constants.Zero, ethers.constants.Zero]]),
-                    );
-
                 // run the clearing process
                 config.isTest = true;
                 config.shuffle = false;
@@ -594,7 +547,6 @@ for (let i = 0; i < testData.length; i++) {
                 config.dataFetcher = dataFetcher;
                 config.accounts = [];
                 config.mainAccount = bot;
-                config.quoteRpc = [mockServer.url + "/rpc"];
                 config.gasPriceMultiplier = 107;
                 config.gasLimitMultiplier = 100;
                 config.dispair = {
@@ -784,15 +736,14 @@ for (let i = 0; i < testData.length; i++) {
                         }
                     }
                     tokens[i].vaultId = ethers.BigNumber.from(randomUint256());
-                    tokens[i].depositAmount =
-                        i > 0
-                            ? (tokens[i].depositAmount = ethers.utils.parseUnits(
-                                  deposits[i] ?? "100",
-                                  tokens[i].decimals,
-                              ))
-                            : (tokens[i].depositAmount = ethers.utils
-                                  .parseUnits(deposits[i] ?? "100", tokens[i].decimals)
-                                  .div(tokens.length - 1));
+                    i > 0
+                        ? (tokens[i].depositAmount = ethers.utils.parseUnits(
+                              deposits[i] ?? "100",
+                              tokens[i].decimals,
+                          ))
+                        : (tokens[i].depositAmount = ethers.utils
+                              .parseUnits(deposits[i] ?? "100", tokens[i].decimals)
+                              .div(4));
                     owners.push(await ethers.getImpersonatedSigner(addressesWithBalance[i]));
                     await network.provider.send("hardhat_setBalance", [
                         addressesWithBalance[i],
@@ -811,6 +762,7 @@ for (let i = 0; i < testData.length; i++) {
                 // all orders have WETH as output and other specified
                 // tokens as input
                 let orders = [];
+                const opposingOrders = [];
                 for (let i = 1; i < tokens.length; i++) {
                     const depositConfigStruct1 = {
                         token: tokens[i].address,
@@ -919,7 +871,7 @@ for (let i = 0; i < testData.length; i++) {
                         meta: encodeMeta("some_order"),
                     };
                     const tx2 = await orderbook.connect(owners[0]).addOrder2(addOrderConfig2, []);
-                    orders.push(
+                    opposingOrders.push(
                         await mockSgFromEvent(
                             await getEventArgs(tx2, "AddOrderV2", orderbook),
                             orderbook,
@@ -927,29 +879,7 @@ for (let i = 0; i < testData.length; i++) {
                         ),
                     );
                 }
-
-                // mock quote responses
-                const t0 = [];
-                for (let i = 0; i < tokens.length - 1; i++) {
-                    t0.push(tokens[0]);
-                }
-                for (let i = 1; i < tokens.length; i++) {
-                    const output = tokens[i].depositAmount.mul(
-                        "1" + "0".repeat(18 - tokens[i].decimals),
-                    );
-                    await mockServer
-                        .forPost("/rpc")
-                        .withBodyIncluding(owners[i].address.substring(2).toLowerCase())
-                        .thenSendJsonRpcResult(
-                            encodeQuoteResponse([[true, output, ethers.constants.Zero]]),
-                        );
-                }
-                await mockServer
-                    .forPost("/rpc")
-                    .withBodyIncluding(owners[0].address.substring(2).toLowerCase())
-                    .thenSendJsonRpcResult(
-                        encodeQuoteResponse([[true, ethers.constants.Zero, ethers.constants.Zero]]),
-                    );
+                orders.push(...opposingOrders);
 
                 // run the clearing process
                 config.isTest = true;
@@ -967,7 +897,6 @@ for (let i = 0; i < testData.length; i++) {
                 config.dataFetcher = dataFetcher;
                 config.accounts = [];
                 config.mainAccount = bot;
-                config.quoteRpc = [mockServer.url + "/rpc"];
                 config.gasPriceMultiplier = 107;
                 config.gasLimitMultiplier = 100;
                 config.dispair = {

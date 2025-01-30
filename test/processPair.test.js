@@ -2,16 +2,13 @@ const { assert } = require("chai");
 const fixtures = require("./data");
 const mockServer = require("mockttp").getLocal();
 const { encodeQuoteResponse } = require("./utils");
+const { processPair } = require("../src/processOrders");
 const { clone, estimateProfit } = require("../src/utils");
+const { ProcessPairHaltReason, ProcessPairReportStatus } = require("../src/types");
 const {
     ethers,
     utils: { formatUnits },
 } = require("ethers");
-const {
-    processPair,
-    ProcessPairHaltReason,
-    ProcessPairReportStatus,
-} = require("../src/processOrders");
 
 describe("Test process pair", async function () {
     // mock dataFecther, ethers signer and viem client
@@ -42,7 +39,7 @@ describe("Test process pair", async function () {
     } = fixtures;
     const config = JSON.parse(JSON.stringify(fixtureConfig));
     config.rpc = ["http://localhost:8082/rpc"];
-    const quoteResponse = encodeQuoteResponse([[true, vaultBalance, ethers.constants.Zero]]);
+    const quoteResponse = encodeQuoteResponse([true, vaultBalance, ethers.constants.Zero]);
     const state = {
         gasPrice: gasPrice.mul(107).div(100).toBigInt(),
     };
@@ -75,8 +72,16 @@ describe("Test process pair", async function () {
             fetchPoolsForToken: async () => {},
             fetchedPairPools: [],
         };
+        // 0xe0e530b7
         viemClient = {
             chain: { id: 137 },
+            call: async (args) => {
+                if (args?.data?.includes("0xe0e530b7")) {
+                    return { data: quoteResponse };
+                } else {
+                    return;
+                }
+            },
             multicall: async () => [vaultBalance.toBigInt()],
             getGasPrice: async () => gasPrice.toBigInt(),
             getBlockNumber: async () => 123456n,
@@ -96,6 +101,7 @@ describe("Test process pair", async function () {
                 return poolCodeMap;
             },
         };
+        config.viemClient = viemClient;
     });
     afterEach(() => mockServer.stop());
 
@@ -277,11 +283,15 @@ describe("Test process pair", async function () {
 
     it("should have no output", async function () {
         // set quote max output to zero
-        await mockServer
-            .forPost("/rpc")
-            .thenSendJsonRpcResult(
-                encodeQuoteResponse([[true, ethers.constants.Zero, ethers.constants.Zero]]),
-            );
+        viemClient.call = async (args) => {
+            if (args?.data?.includes("0xe0e530b7")) {
+                return {
+                    data: encodeQuoteResponse([true, ethers.constants.Zero, ethers.constants.Zero]),
+                };
+            } else {
+                return;
+            }
+        };
         const orderPairObjectCopy = clone(orderPairObject);
         const result = await (
             await processPair({
@@ -319,7 +329,9 @@ describe("Test process pair", async function () {
     });
 
     it("should fail to quote order", async function () {
-        await mockServer.forPost("/rpc").thenSendJsonRpcError();
+        viemClient.call = async () => {
+            return Promise.reject('Execution reverted with unknown error. Data: "" ');
+        };
         try {
             await (
                 await processPair({
@@ -585,7 +597,13 @@ describe("Test process pair", async function () {
         signer.sendTx = async () => txHash;
         viemClient.waitForTransactionReceipt = async () => errorReceipt;
         viemClient.getTransaction = async () => ({});
-        viemClient.call = async () => Promise.reject("out of gas");
+        viemClient.call = async (args) => {
+            if (args?.data?.includes("0xe0e530b7")) {
+                return { data: quoteResponse };
+            } else {
+                return Promise.reject("out of gas");
+            }
+        };
         try {
             await (
                 await processPair({

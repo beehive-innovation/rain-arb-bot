@@ -1,9 +1,8 @@
-import { recordGasEstAttrs } from ".";
 import { orderbookAbi } from "../abis";
 import { estimateGasCost } from "../gas";
 import { BigNumber, ethers } from "ethers";
 import { containsNodeError, errorSnapshot } from "../error";
-import { getWithdrawEnsureRainlang, parseRainlang } from "../task";
+import { getWithdrawEnsureRainlang, parseRainlang } from "../config";
 import { estimateProfit, scale18, withBigintSerializer } from "../utils";
 import { BaseError, erc20Abi, ExecutionRevertedError, PublicClient } from "viem";
 import {
@@ -14,6 +13,8 @@ import {
     BundledOrders,
     TakeOrderDetails,
 } from "../types";
+
+const obInterface = new ethers.utils.Interface(orderbookAbi);
 
 /**
  * Executes a extimateGas call for an intra-orderbook tx (clear2()), to determine if the tx is successfull ot not
@@ -52,7 +53,6 @@ export async function dryrun({
 
     const inputBountyVaultId = "1";
     const outputBountyVaultId = "1";
-    const obInterface = new ethers.utils.Interface(orderbookAbi);
     const task = {
         evaluable: {
             interpreter: config.dispair.interpreter,
@@ -120,7 +120,13 @@ export async function dryrun({
         gasLimit = ethers.BigNumber.from(estimation.gas).mul(config.gasLimitMultiplier).div(100);
 
         // include dryrun headroom gas estimation in otel logs
-        recordGasEstAttrs(spanAttributes, estimation, config, true);
+        spanAttributes["gasEst.headroom.gasLimit"] = estimation.gas.toString();
+        spanAttributes["gasEst.headroom.totalCost"] = estimation.totalGasCost.toString();
+        spanAttributes["gasEst.headroom.gasPrice"] = estimation.gasPrice.toString();
+        if (config.isSpecialL2) {
+            spanAttributes["gasEst.headroom.l1Cost"] = estimation.l1Cost.toString();
+            spanAttributes["gasEst.headroom.l1GasPrice"] = estimation.l1GasPrice.toString();
+        }
     } catch (e) {
         // reason, code, method, transaction, error, stack, message
         const isNodeError = containsNodeError(e as BaseError);
@@ -200,7 +206,13 @@ export async function dryrun({
             gasCost = gasLimit.mul(gasPrice).add(estimation.l1Cost);
 
             // include dryrun final gas estimation in otel logs
-            recordGasEstAttrs(spanAttributes, estimation, config, false);
+            spanAttributes["gasEst.final.gasLimit"] = estimation.gas.toString();
+            spanAttributes["gasEst.final.totalCost"] = estimation.totalGasCost.toString();
+            spanAttributes["gasEst.final.gasPrice"] = estimation.gasPrice.toString();
+            if (config.isSpecialL2) {
+                spanAttributes["gasEst.final.l1Cost"] = estimation.l1Cost.toString();
+                spanAttributes["gasEst.final.l1GasPrice"] = estimation.l1GasPrice.toString();
+            }
             task.evaluable.bytecode = await parseRainlang(
                 await getWithdrawEnsureRainlang(
                     signer.account.address,

@@ -1,10 +1,15 @@
+import { ethers } from "ethers";
 import { SgOrder } from "./query";
 import { Span } from "@opentelemetry/api";
-import { hexlify } from "ethers/lib/utils";
-import { addWatchedToken } from "./account";
-import { orderbookAbi, OrderV3 } from "./abis";
-import { getTokenSymbol, shuffleArray } from "./utils";
-import { decodeAbiParameters, erc20Abi, parseAbi, parseAbiParameters } from "viem";
+import { OrderbookQuoteAbi, OrderV3, VaultBalanceAbi } from "./abis";
+import { shuffleArray, sleep, addWatchedToken, getQuoteConfig } from "./utils";
+import {
+    erc20Abi,
+    encodeFunctionData,
+    parseAbiParameters,
+    decodeAbiParameters,
+    decodeFunctionResult,
+} from "viem";
 import {
     Pair,
     Order,
@@ -24,6 +29,7 @@ import {
  * The default owner limit
  */
 export const DEFAULT_OWNER_LIMIT = 25 as const;
+const OrderV3Abi = parseAbiParameters(OrderV3);
 
 export function toOrder(orderLog: any): Order {
     return {
@@ -37,12 +43,12 @@ export function toOrder(orderLog: any): Order {
         validInputs: orderLog.validInputs.map((v: any) => ({
             token: v.token.toLowerCase(),
             decimals: v.decimals,
-            vaultId: hexlify(v.vaultId),
+            vaultId: ethers.utils.hexlify(v.vaultId),
         })),
         validOutputs: orderLog.validOutputs.map((v: any) => ({
             token: v.token.toLowerCase(),
             decimals: v.decimals,
-            vaultId: hexlify(v.vaultId),
+            vaultId: ethers.utils.hexlify(v.vaultId),
         })),
     };
 }
@@ -148,10 +154,7 @@ export async function handleAddOrderbookOwnersProfileMap(
         const orderHash = orderDetails.orderHash.toLowerCase();
         const orderbook = orderDetails.orderbook.id.toLowerCase();
         const orderStruct = toOrder(
-            decodeAbiParameters(
-                parseAbiParameters(OrderV3),
-                orderDetails.orderBytes as `0x${string}`,
-            )[0],
+            decodeAbiParameters(OrderV3Abi, orderDetails.orderBytes as `0x${string}`)[0],
         );
         if (span) {
             if (!changes[orderbook]) changes[orderbook] = [];
@@ -240,10 +243,7 @@ export async function handleRemoveOrderbookOwnersProfileMap(
         const orderDetails = ordersDetails[i];
         const orderbook = orderDetails.orderbook.id.toLowerCase();
         const orderStruct = toOrder(
-            decodeAbiParameters(
-                parseAbiParameters(OrderV3),
-                orderDetails.orderBytes as `0x${string}`,
-            )[0],
+            decodeAbiParameters(OrderV3Abi, orderDetails.orderBytes as `0x${string}`)[0],
         );
         if (span) {
             if (!changes[orderbook]) changes[orderbook] = [];
@@ -430,7 +430,7 @@ export async function fetchVaultBalances(
             address: orderbook as `0x${string}`,
             allowFailure: false,
             chainId: viemClient.chain!.id,
-            abi: parseAbi([orderbookAbi[3]]),
+            abi: VaultBalanceAbi,
             functionName: "vaultBalance",
             args: [owner, token, v.vaultId],
         })),
@@ -578,4 +578,107 @@ export async function resetLimits(
             });
         }
     });
+}
+
+/**
+ * Gets all distinct tokens of all the orders' IOs from a subgraph query,
+ * used to to keep a cache of known tokens at runtime to not fetch their
+ * details everytime with onchain calls
+ */
+export function getOrdersTokens(ordersDetails: SgOrder[]): TokenDetails[] {
+    const tokens: TokenDetails[] = [];
+    for (let i = 0; i < ordersDetails.length; i++) {
+        const orderDetails = ordersDetails[i];
+        const orderStruct = toOrder(
+            decodeAbiParameters(OrderV3Abi, orderDetails.orderBytes as `0x${string}`)[0],
+        );
+
+        for (let j = 0; j < orderStruct.validOutputs.length; j++) {
+            const _output = orderStruct.validOutputs[j];
+            const _outputSymbol = orderDetails.outputs.find(
+                (v: any) => v.token.address.toLowerCase() === _output.token.toLowerCase(),
+            )?.token?.symbol;
+            if (!tokens.find((v) => v.address === _output.token.toLowerCase())) {
+                tokens.push({
+                    address: _output.token.toLowerCase(),
+                    decimals: _output.decimals,
+                    symbol: _outputSymbol ?? "UnknownSymbol",
+                });
+            }
+        }
+        for (let k = 0; k < orderStruct.validInputs.length; k++) {
+            const _input = orderStruct.validInputs[k];
+            const _inputSymbol = orderDetails.inputs.find(
+                (v: any) => v.token.address.toLowerCase() === _input.token.toLowerCase(),
+            )?.token?.symbol;
+            if (!tokens.find((v) => v.address === _input.token.toLowerCase())) {
+                tokens.push({
+                    address: _input.token.toLowerCase(),
+                    decimals: _input.decimals,
+                    symbol: _inputSymbol ?? "UnknownSymbol",
+                });
+            }
+        }
+    }
+    return tokens;
+}
+
+/**
+ * Quotes a single order
+ * @param orderDetails - Order details to quote
+ * @param viemClient - Viem client
+ * @param blockNumber - Optional block number
+ * @param gas - Optional read gas
+ */
+export async function quoteSingleOrder(
+    orderDetails: BundledOrders,
+    viemClient: ViemClient,
+    gas?: bigint,
+    blockNumber?: bigint,
+) {
+    const { data } = await viemClient.call({
+        to: orderDetails.orderbook as `0x${string}`,
+        data: encodeFunctionData({
+            abi: OrderbookQuoteAbi,
+            functionName: "quote",
+            args: [getQuoteConfig(orderDetails.takeOrders[0])],
+        }),
+        blockNumber,
+        gas,
+    });
+    if (typeof data !== "undefined") {
+        const quoteResult = decodeFunctionResult({
+            abi: OrderbookQuoteAbi,
+            functionName: "quote",
+            data,
+        });
+        orderDetails.takeOrders[0].quote = {
+            maxOutput: ethers.BigNumber.from(quoteResult[1]),
+            ratio: ethers.BigNumber.from(quoteResult[2]),
+        };
+        return;
+    } else {
+        return Promise.reject(`Failed to quote order, reason: reqtured no data`);
+    }
+}
+
+/**
+ * Get token symbol
+ * @param address - The address of token
+ * @param viemClient - The viem client
+ */
+export async function getTokenSymbol(address: string, viemClient: ViemClient): Promise<string> {
+    // 3 retries
+    for (let i = 0; i < 3; i++) {
+        try {
+            return await viemClient.readContract({
+                address: address as `0x${string}`,
+                abi: erc20Abi,
+                functionName: "symbol",
+            });
+        } catch {
+            await sleep(5_000);
+        }
+    }
+    return "UnknownSymbol";
 }

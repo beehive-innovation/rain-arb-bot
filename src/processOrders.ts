@@ -1,17 +1,20 @@
 import { ChainId } from "sushi";
 import { findOpp } from "./modes";
-import { getQuoteGas } from "./gas";
 import { PublicClient } from "viem";
 import { Token } from "sushi/currency";
+import { quoteSingleOrder } from "./order";
 import { createViemClient } from "./config";
-import { fundOwnedOrders } from "./account";
 import { arbAbis, orderbookAbi } from "./abis";
+import { getGasPrice, getQuoteGas } from "./gas";
 import { getSigner, handleTransaction } from "./tx";
 import { privateKeyToAccount } from "viem/accounts";
 import { BigNumber, Contract, ethers } from "ethers";
 import { Tracer } from "@opentelemetry/sdk-trace-base";
 import { Context, SpanStatusCode } from "@opentelemetry/api";
+import { fundOwnedOrders, checkOwnedOrders } from "./account";
+import { ProcessPairHaltReason, ProcessPairReportStatus } from "./types";
 import { ErrorSeverity, errorSnapshot, isTimeout, KnownErrors } from "./error";
+import { toNumber, getEthPrice, routeExists, PoolBlackList, getMarketQuote } from "./utils";
 import {
     Report,
     BotConfig,
@@ -23,37 +26,6 @@ import {
     OperationState,
     ProcessPairResult,
 } from "./types";
-import {
-    toNumber,
-    getEthPrice,
-    routeExists,
-    PoolBlackList,
-    getMarketQuote,
-    checkOwnedOrders,
-    quoteSingleOrder,
-} from "./utils";
-
-/**
- * Specifies reason that order process halted
- */
-export enum ProcessPairHaltReason {
-    FailedToQuote = 1,
-    FailedToGetEthPrice = 2,
-    FailedToGetPools = 3,
-    TxFailed = 4,
-    TxMineFailed = 5,
-    TxReverted = 6,
-    UnexpectedError = 7,
-}
-
-/**
- * Specifies status of an processed order report
- */
-export enum ProcessPairReportStatus {
-    ZeroOutput = 1,
-    NoOpportunity = 2,
-    FoundOpportunity = 3,
-}
 
 /**
  * Main function that processes all given orders and tries clearing them against onchain liquidity and reports the result
@@ -444,8 +416,6 @@ export async function processPair(args: {
             sellToken: orderPairObject.sellToken,
         },
     };
-    const gasPrice = ethers.BigNumber.from(state.gasPrice);
-
     spanAttributes["details.orders"] = orderPairObject.takeOrders.map((v) => v.id);
     spanAttributes["details.pair"] = pair;
 
@@ -465,8 +435,7 @@ export async function processPair(args: {
     try {
         await quoteSingleOrder(
             orderPairObject,
-            isE2eTest ? (config as any).quoteRpc : config.rpc,
-            undefined,
+            viemClient as any as ViemClient,
             isE2eTest ? config.quoteGas : await getQuoteGas(config, orderPairObject),
         );
         if (orderPairObject.takeOrders[0].quote?.maxOutput.isZero()) {
@@ -492,6 +461,9 @@ export async function processPair(args: {
         maxOutput: ethers.utils.formatUnits(orderPairObject.takeOrders[0].quote!.maxOutput),
         ratio: ethers.utils.formatUnits(orderPairObject.takeOrders[0].quote!.ratio),
     });
+
+    await getGasPrice(config, state);
+    const gasPrice = ethers.BigNumber.from(state.gasPrice);
 
     // get pool details
     if (
