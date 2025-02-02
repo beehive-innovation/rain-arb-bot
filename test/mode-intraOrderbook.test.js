@@ -3,15 +3,18 @@ const testData = require("./data");
 const { ethers } = require("ethers");
 const { errorSnapshot } = require("../src/error");
 const { clone, estimateProfit } = require("../src/utils");
-const { getWithdrawEnsureBytecode } = require("../src/config");
 const { dryrun, findOpp } = require("../src/modes/intraOrderbook");
+const { getWithdrawEnsureRainlang, parseRainlang } = require("../src/task");
 
 // mocking signer and dataFetcher
 let signer = {};
 const viemClient = {
     getBlockNumber: async () => BigInt(oppBlockNumber),
     call: async () => ({ data: ethers.BigNumber.from("1000000000000000000").toHexString() }),
-    readContract: async () => 1000000000000000000n,
+    readContract: async (arg) => {
+        if (arg.functionName === "parse2") return "0x1234";
+        else return 1000000000000000000n;
+    },
 };
 
 const oppBlockNumber = 123456;
@@ -27,6 +30,7 @@ const {
 } = testData;
 const orderbooksOrders = clone(orderbooksOrdersTemp);
 orderbooksOrders[0][0].orderbook = orderPairObject.orderbook;
+config.viemClient = viemClient;
 
 describe("Test intra-orderbook dryrun", async function () {
     beforeEach(() => {
@@ -55,18 +59,22 @@ describe("Test intra-orderbook dryrun", async function () {
         });
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getWithdrawEnsureBytecode(
-                    signer.account.address,
-                    orderPairObject.buyToken,
-                    orderPairObject.sellToken,
-                    inputBalance,
-                    outputBalance,
-                    ethers.utils.parseUnits(inputToEthPrice),
-                    ethers.utils.parseUnits(outputToEthPrice),
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getWithdrawEnsureRainlang(
+                        signer.account.address,
+                        orderPairObject.buyToken,
+                        orderPairObject.sellToken,
+                        inputBalance,
+                        outputBalance,
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.utils.parseUnits(outputToEthPrice),
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -187,18 +195,22 @@ describe("Test intra-orderbook find opp", async function () {
         });
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getWithdrawEnsureBytecode(
-                    signer.account.address,
-                    orderPairObject.buyToken,
-                    orderPairObject.sellToken,
-                    balance2,
-                    balance,
-                    ethers.utils.parseUnits(inputToEthPrice),
-                    ethers.utils.parseUnits(outputToEthPrice),
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getWithdrawEnsureRainlang(
+                        signer.account.address,
+                        orderPairObject.buyToken,
+                        orderPairObject.sellToken,
+                        balance2,
+                        balance,
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.utils.parseUnits(outputToEthPrice),
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -288,19 +300,22 @@ describe("Test intra-orderbook find opp", async function () {
                 [
                     {
                         evaluable: {
-                            interpreter:
-                                orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                            store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                            bytecode: getWithdrawEnsureBytecode(
-                                signer.account.address,
-                                orderPairObject.buyToken,
-                                orderPairObject.sellToken,
-                                balance2,
-                                balance,
-                                ethers.utils.parseUnits(inputToEthPrice),
-                                ethers.utils.parseUnits(outputToEthPrice),
-                                ethers.constants.Zero,
-                                signer.account.address,
+                            interpreter: config.dispair.interpreter,
+                            store: config.dispair.store,
+                            bytecode: await parseRainlang(
+                                await getWithdrawEnsureRainlang(
+                                    signer.account.address,
+                                    orderPairObject.buyToken,
+                                    orderPairObject.sellToken,
+                                    balance2,
+                                    balance,
+                                    ethers.utils.parseUnits(inputToEthPrice),
+                                    ethers.utils.parseUnits(outputToEthPrice),
+                                    ethers.constants.Zero,
+                                    signer.account.address,
+                                ),
+                                viemClient,
+                                config.dispair,
                             ),
                         },
                         signedContext: [],

@@ -71,6 +71,16 @@ export const routeProcessor3Abi = [
 ] as const;
 
 /**
+ * ExpressionDeployerNPE2 minimal ABI
+ */
+export const deployerAbi = [
+    "function parse2(bytes memory data) external view returns (bytes memory bytecode)",
+    "function iStore() external view returns (address)",
+    "function iInterpreter() external view returns (address)",
+    "function iParser() external view returns (address)",
+] as const;
+
+/**
  * Minimal ABI for Arb contract
  */
 export const arbAbis = [

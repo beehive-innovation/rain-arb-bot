@@ -67,6 +67,11 @@ const config = {
     },
     gasPriceMultiplier: 107,
     gasLimitMultiplier: 100,
+    dispair: {
+        interpreter: hexlify(randomBytes(20)),
+        store: hexlify(randomBytes(20)),
+        deployer: hexlify(randomBytes(20)),
+    },
 };
 
 const vaultBalance1 = BigNumber.from("10000000000000000000");

@@ -12,6 +12,7 @@ describe("Test app options", async function () {
             "0x" + "3".repeat(40), // arb address
             {
                 lps: ["SUShIswapV2", "bIsWaP"],
+                dispair: "0xE7116BC05C8afe25e5B54b813A74F916B5D42aB1",
             },
         );
 

@@ -4,13 +4,14 @@ const { ethers } = require("ethers");
 const { orderbookAbi } = require("../src/abis");
 const { errorSnapshot } = require("../src/error");
 const { estimateProfit } = require("../src/utils");
-const { getBountyEnsureBytecode } = require("../src/config");
 const { dryrun, findOpp } = require("../src/modes/interOrderbook");
+const { getBountyEnsureRainlang, parseRainlang } = require("../src/task");
 
 // mocking signer and dataFetcher
 let signer = {};
 const viemClient = {
     getBlockNumber: async () => BigInt(oppBlockNumber),
+    readContract: async () => "0x1234",
 };
 
 const oppBlockNumber = 123456;
@@ -27,6 +28,7 @@ const {
     orderbooksOrders,
     opposingOrderbookAddress,
 } = testData;
+config.viemClient = viemClient;
 
 describe("Test inter-orderbook dryrun", async function () {
     beforeEach(() => {
@@ -79,13 +81,17 @@ describe("Test inter-orderbook dryrun", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(inputToEthPrice),
-                    ethers.utils.parseUnits(outputToEthPrice),
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.utils.parseUnits(outputToEthPrice),
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -214,13 +220,17 @@ describe("Test inter-orderbook find opp", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(inputToEthPrice),
-                    ethers.utils.parseUnits(outputToEthPrice),
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(inputToEthPrice),
+                        ethers.utils.parseUnits(outputToEthPrice),
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -309,14 +319,17 @@ describe("Test inter-orderbook find opp", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                    bytecode: getBountyEnsureBytecode(
-                        ethers.utils.parseUnits(inputToEthPrice),
-                        ethers.utils.parseUnits(outputToEthPrice),
-                        ethers.constants.Zero,
-                        signer.account.address,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
+                    bytecode: await parseRainlang(
+                        await getBountyEnsureRainlang(
+                            ethers.utils.parseUnits(inputToEthPrice),
+                            ethers.utils.parseUnits(outputToEthPrice),
+                            ethers.constants.Zero,
+                            signer.account.address,
+                        ),
+                        viemClient,
+                        config.dispair,
                     ),
                 },
                 signedContext: [],

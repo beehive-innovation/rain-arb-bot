@@ -1,5 +1,5 @@
-import { BigNumber } from "ethers";
 import { getSgOrderbooks } from "./sg";
+import { sendTransaction } from "./tx";
 import { WNATIVE } from "sushi/currency";
 import { ChainId, ChainKey } from "sushi/chain";
 import { DataFetcher, LiquidityProviders } from "sushi/router";
@@ -21,6 +21,7 @@ import {
     walletActions,
     PrivateKeyAccount,
     createWalletClient,
+    encodeFunctionData,
 } from "viem";
 import {
     STABLES,
@@ -30,7 +31,6 @@ import {
     ROUTE_PROCESSOR_3_1_ADDRESS,
     ROUTE_PROCESSOR_3_2_ADDRESS,
 } from "sushi/config";
-import { sendTransaction } from "./tx";
 
 /**
  * Get the chain config for a given chain id
@@ -456,3 +456,210 @@ export const fallbackRpcs: Record<number, readonly string[]> = {
         "https://base.meowrpc.com",
     ],
 } as const;
+
+// import { readFileSync } from "fs";
+import { deployerAbi } from "./abis";
+import { BigNumber, ethers, utils } from "ethers";
+import { Dispair } from "./types";
+import { parseAbi, stringToHex } from "viem";
+import { MetaStore, RainDocument } from "@rainlanguage/dotrain";
+
+// const metaStore = new MetaStore(false);
+// export const TaskEntryPoint = ["main"] as const;
+// export const EnsureBountyDotrain = readFileSync("./tasks/ensure-bounty.rain", {
+//     encoding: "utf8",
+// });
+// export const WithdrawEnsureBountyDotrain = readFileSync("./tasks/withdraw-ensure-bounty.rain", {
+//     encoding: "utf8",
+// });
+
+/**
+ * Get the bounty check ensure task rainlang
+ * @param inputToEthPrice - Input token to Eth price
+ * @param outputToEthPrice - Output token to Eth price
+ * @param minimumExpected - Minimum expected amount
+ * @param sender - The msg sender
+ */
+export async function getBountyEnsureRainlang(
+    inputToEthPrice: BigNumber,
+    outputToEthPrice: BigNumber,
+    minimumExpected: BigNumber,
+    sender: string,
+): Promise<string> {
+    const x = `---
+#sender ! msg sender
+#input-to-eth-price ! input token to eth price
+#output-to-eth-price ! output token to eth price
+#minimum-expected ! minimum expected bounty
+
+#main
+:ensure(equal-to(sender context<0 0>()) "unknown sender"),
+total-bounty-eth: add(
+    mul(input-to-eth-price context<1 0>())
+    mul(output-to-eth-price context<1 1>())
+),
+:ensure(
+    greater-than-or-equal-to(
+        total-bounty-eth
+        minimum-expected
+    )
+    "minimum sender output"
+);
+`;
+    const metaStore = new MetaStore(false);
+    const rd = RainDocument.create(x, metaStore, [
+        ["sender", sender],
+        ["input-to-eth-price", utils.formatUnits(inputToEthPrice)],
+        ["output-to-eth-price", utils.formatUnits(outputToEthPrice)],
+        ["minimum-expected", utils.formatUnits(minimumExpected)],
+    ]);
+    const res = await rd.compose(["main"]);
+    rd.free();
+    metaStore.free();
+    return res;
+    // const res = await RainDocument.composeText(x, ["main"], metaStore, [
+    //     ["sender", sender],
+    //     ["input-to-eth-price", utils.formatUnits(inputToEthPrice)],
+    //     ["output-to-eth-price", utils.formatUnits(outputToEthPrice)],
+    //     ["minimum-expected", utils.formatUnits(minimumExpected)],
+    // ]);
+    // metaStore.free();
+    // return res;
+}
+
+/**
+ * Get the bounty check ensure task rainlang for clear2 withdraw
+ * @param botAddress - Bot wallet address
+ * @param inputToken - Input token address
+ * @param outputToken - Output token address
+ * @param orgInputBalance - Input token original balance
+ * @param orgOutputBalance - Output token original balance
+ * @param inputToEthPrice - Input token to Eth price
+ * @param outputToEthPrice - Output token to Eth price
+ * @param minimumExpected - Minimum expected amount
+ * @param sender - The msg sender
+ */
+export async function getWithdrawEnsureRainlang(
+    botAddress: string,
+    inputToken: string,
+    outputToken: string,
+    orgInputBalance: BigNumber,
+    orgOutputBalance: BigNumber,
+    inputToEthPrice: BigNumber,
+    outputToEthPrice: BigNumber,
+    minimumExpected: BigNumber,
+    sender: string,
+): Promise<string> {
+    const x = `---
+#sender ! msg sender
+#bot-address ! bot wallet adddress as bounty vault owner
+#input-token ! input token address
+#output-token ! input token address
+#input-to-eth-price ! input token to eth price
+#output-to-eth-price ! output token to eth price
+#org-input-balance ! original balance of the bot input token before clear
+#org-output-balance ! original balance of the bot output token before clear
+#minimum-expected ! minimum expected bounty
+
+#main
+:ensure(equal-to(sender context<0 0>()) "unknown sender"),
+input-bounty: sub(
+    erc20-balance-of(input-token bot-address)
+    org-input-balance
+),
+output-bounty: sub(
+    erc20-balance-of(output-token bot-address)
+    org-output-balance
+),
+total-bounty-eth: add(
+    mul(input-bounty input-to-eth-price)
+    mul(output-bounty output-to-eth-price)
+),
+:ensure(
+    greater-than-or-equal-to(
+        total-bounty-eth
+        minimum-expected
+    )
+    "minimum sender output"
+);
+`;
+    const metaStore = new MetaStore(false);
+    const rd = RainDocument.create(x, metaStore, [
+        ["sender", sender],
+        ["bot-address", botAddress],
+        ["input-token", inputToken],
+        ["output-token", outputToken],
+        ["minimum-expected", utils.formatUnits(minimumExpected)],
+        ["input-to-eth-price", utils.formatUnits(inputToEthPrice)],
+        ["output-to-eth-price", utils.formatUnits(outputToEthPrice)],
+        ["org-input-balance", utils.formatUnits(orgInputBalance)],
+        ["org-output-balance", utils.formatUnits(orgOutputBalance)],
+    ]);
+    const res = await rd.compose(["main"]);
+    rd.free();
+    metaStore.free();
+    return res;
+    // const res = await RainDocument.composeText(x, ["main"], metaStore, [
+    //     ["sender", sender],
+    //     ["bot-address", botAddress],
+    //     ["input-token", inputToken],
+    //     ["output-token", outputToken],
+    //     ["minimum-expected", utils.formatUnits(minimumExpected)],
+    //     ["input-to-eth-price", utils.formatUnits(inputToEthPrice)],
+    //     ["output-to-eth-price", utils.formatUnits(outputToEthPrice)],
+    //     ["org-input-balance", utils.formatUnits(orgInputBalance)],
+    //     ["org-output-balance", utils.formatUnits(orgOutputBalance)],
+    // ]);
+    // return res;
+}
+
+/**
+ * Calls parse2 on a given deployer to parse the given rainlang text
+ */
+export async function parseRainlang(
+    rainlang: string,
+    viemClient: ViemClient | PublicClient,
+    dispair: Dispair,
+): Promise<string> {
+    const res = await viemClient.call({
+        to: dispair.deployer as `0x${string}`,
+        data: encodeFunctionData({
+            abi: parseAbi(deployerAbi),
+            functionName: "parse2",
+            args: [stringToHex(rainlang)],
+        }),
+    });
+    if (!res.data) return "0x";
+    else return res.data;
+    // return await viemClient.readContract({
+    //     address: dispair.deployer as `0x${string}`,
+    //     abi: parseAbi(deployerAbi),
+    //     functionName: "parse2",
+    //     args: [stringToHex(rainlang)],
+    // });
+}
+
+export function getBountyEnsureRainlangg(
+    config: BotConfig,
+    inputToEthPrice: BigNumber,
+    outputToEthPrice: BigNumber,
+    minimumExpected: BigNumber,
+    sender: string,
+): string {
+    let rainlang = config.rainlang.rainlang;
+    const inputPrice = inputToEthPrice.toHexString().substring(2).padStart(64, "0");
+    const outputPrice = outputToEthPrice.toHexString().substring(2).padStart(64, "0");
+    const minimum = minimumExpected.toHexString().substring(2).padStart(64, "0");
+    const signer = ethers.BigNumber.from(sender).toHexString().substring(2).padStart(64, "0");
+    rainlang = rainlang.replaceAll(config.rainlang.signer.substring(2).padStart(64, "0"), signer);
+    rainlang = rainlang.replaceAll(
+        config.rainlang.inputPrice.substring(2).padStart(64, "0"),
+        inputPrice,
+    );
+    rainlang = rainlang.replaceAll(
+        config.rainlang.outputPrice.substring(2).padStart(64, "0"),
+        outputPrice,
+    );
+    rainlang = rainlang.replaceAll(config.rainlang.minimum.substring(2).padStart(64, "0"), minimum);
+    return rainlang;
+}

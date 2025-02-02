@@ -481,9 +481,8 @@ describe("Test process pair", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
                     bytecode: "0x",
                 },
                 signedContext: [],
@@ -677,9 +676,8 @@ describe("Test process pair", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
                     bytecode: "0x",
                 },
                 signedContext: [],

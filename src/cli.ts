@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+import { isAddress } from "viem";
 import { getGasPrice } from "./gas";
 import { Command } from "commander";
 import { getMetaInfo } from "./config";
@@ -75,6 +76,7 @@ const ENV_OPTIONS = {
     txGas: process?.env?.TX_GAS,
     quoteGas: process?.env?.QUOTE_GAS,
     route: process?.env?.ROUTE,
+    dispair: process?.env?.DISPAIR,
     rpOnly: process?.env?.RP_ONLY?.toLowerCase() === "true" ? true : false,
     ownerProfile: process?.env?.OWNER_PROFILE
         ? Array.from(process?.env?.OWNER_PROFILE.matchAll(/[^,\s]+/g)).map((v) => v[0])
@@ -119,6 +121,10 @@ const getOptions = async (argv: any, version?: string) => {
         .option(
             "--generic-arb-address <address>",
             "Address of the deployed generic arb contract to perform inter-orderbook clears, Will override the 'GENERIC_ARB_ADDRESS' in env variables",
+        )
+        .option(
+            "--dispair <address>",
+            "Address of dispair (ExpressionDeployer contract) to use for tasks, Will override the 'DISPAIR' in env variables",
         )
         .option(
             "-l, --lps <string>",
@@ -260,6 +266,7 @@ const getOptions = async (argv: any, version?: string) => {
     cmdOptions.route = cmdOptions.route || getEnv(ENV_OPTIONS.route);
     cmdOptions.publicRpc = cmdOptions.publicRpc || getEnv(ENV_OPTIONS.publicRpc);
     cmdOptions.rpOnly = cmdOptions.rpOnly || getEnv(ENV_OPTIONS.rpOnly);
+    cmdOptions.dispair = cmdOptions.dispair || getEnv(ENV_OPTIONS.dispair);
     if (cmdOptions.ownerProfile) {
         const profiles: Record<string, number> = {};
         cmdOptions.ownerProfile.forEach((v: string) => {
@@ -468,6 +475,13 @@ export async function startup(argv: any, version?: string, tracer?: Tracer, ctx?
         if (typeof options.txGas !== "string" || !/^[0-9]+%?$/.test(options.txGas)) {
             throw "invalid txGas value, must be an integer greater than zero optionally with appended percentage sign to apply as percentage to original gas";
         }
+    }
+    if (options.dispair) {
+        if (typeof options.dispair !== "string" || !isAddress(options.dispair, { strict: false })) {
+            throw "expected dispair (ExpressionDeployer contract) address";
+        }
+    } else {
+        throw "undefined dispair address";
     }
     if (options.quoteGas) {
         try {

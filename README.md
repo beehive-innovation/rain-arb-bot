@@ -91,6 +91,7 @@ The app requires these arguments (all arguments can be set in env variables alte
 - `--arb-address`, Address of the deployed arb contract, Will override the 'ARB_ADDRESS' in env variables
 - `--bot-min-balance` The minimum gas token balance the bot wallet must have. Will override the 'BOT_MIN_BALANCE' in env variables
 - `-s` or `--subgraph`, Subgraph URL(s) to read orders details from, can be used in combination with --orders, Will override the 'SUBGRAPH' in env variables
+- `--dispair`, Address of dispair (ExpressionDeployer contract) to use for tasks, Will override the 'DISPAIR' in env variables
 
 Other optional arguments are:
 - `--generic-arb-address`, Address of the deployed generic arb contract to perform inter-orderbook clears, Will override the 'GENERIC_ARB_ADDRESS' in env variables
@@ -275,6 +276,9 @@ QUOTE_GAS=
 
 # Only clear orders through RP4, excludes intra and inter orderbook clears
 RP_ONLY="true"
+
+# Address of dispair (ExpressionDeployer contract) to use for tasks
+DISPAIR="address"
 ```
 If both env variables and CLI argument are set, the CLI arguments will be prioritized and override the env variables.
 

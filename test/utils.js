@@ -5,6 +5,8 @@ const { DefaultArbEvaluable } = require("../src/abis");
 const OrderbookArtifact = require("./abis/OrderBook.json");
 const RainterpreterNPE2Artifact = require("./abis/RainterpreterNPE2.json");
 const RainterpreterStoreNPE2Artifact = require("./abis/RainterpreterStoreNPE2.json");
+const RainterpreterParserNPE2Artifact = require("./abis/RainterpreterParserNPE2.json");
+const RainterpreterExpressionDeployerNPE2Artifact = require("./abis/RainterpreterExpressionDeployerNPE2.json");
 const GenericPoolOrderBookV4ArbOrderTakerArtifact = require("./abis/GenericPoolOrderBookV4ArbOrderTaker.json");
 const RouteProcessorOrderBookV4ArbOrderTakerArtifact = require("./abis/RouteProcessorOrderBookV4ArbOrderTaker.json");
 
@@ -54,6 +56,14 @@ exports.rainterpreterNPE2Deploy = async () => {
 
 exports.rainterpreterStoreNPE2Deploy = async () => {
     return await this.basicDeploy(RainterpreterStoreNPE2Artifact);
+};
+
+exports.rainterpreterParserNPE2Deploy = async () => {
+    return await this.basicDeploy(RainterpreterParserNPE2Artifact);
+};
+
+exports.rainterpreterExpressionDeployerNPE2Deploy = async (deployConfig) => {
+    return await this.basicDeploy(RainterpreterExpressionDeployerNPE2Artifact, deployConfig);
 };
 
 /**

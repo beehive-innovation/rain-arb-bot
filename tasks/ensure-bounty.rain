@@ -1,0 +1,19 @@
+---
+#sender ! msg sender
+#input-to-eth-price ! input token to eth price
+#output-to-eth-price ! output token to eth price
+#minimum-expected ! minimum expected bounty
+
+#main
+:ensure(equal-to(sender context<0 0>()) "unknown sender"),
+total-bounty-eth: add(
+    mul(input-to-eth-price context<1 0>())
+    mul(output-to-eth-price context<1 1>())
+),
+:ensure(
+    greater-than-or-equal-to(
+        total-bounty-eth
+        minimum-expected
+    )
+    "minimum sender output"
+);

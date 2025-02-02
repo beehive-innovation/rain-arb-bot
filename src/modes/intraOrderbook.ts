@@ -1,9 +1,9 @@
 import { orderbookAbi } from "../abis";
 import { estimateGasCost } from "../gas";
 import { BigNumber, ethers } from "ethers";
-import { getWithdrawEnsureBytecode } from "../config";
 import { BaseError, erc20Abi, PublicClient } from "viem";
 import { containsNodeError, errorSnapshot } from "../error";
+import { getWithdrawEnsureRainlang, parseRainlang } from "../config";
 import { estimateProfit, scale18, withBigintSerializer } from "../utils";
 import {
     SpanAttrs,
@@ -54,18 +54,22 @@ export async function dryrun({
     const obInterface = new ethers.utils.Interface(orderbookAbi);
     const task = {
         evaluable: {
-            interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-            store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-            bytecode: getWithdrawEnsureBytecode(
-                signer.account.address,
-                orderPairObject.buyToken,
-                orderPairObject.sellToken,
-                inputBalance,
-                outputBalance,
-                ethers.utils.parseUnits(inputToEthPrice),
-                ethers.utils.parseUnits(outputToEthPrice),
-                ethers.constants.Zero,
-                signer.account.address,
+            interpreter: config.dispair.interpreter,
+            store: config.dispair.store,
+            bytecode: await parseRainlang(
+                await getWithdrawEnsureRainlang(
+                    signer.account.address,
+                    orderPairObject.buyToken,
+                    orderPairObject.sellToken,
+                    inputBalance,
+                    outputBalance,
+                    ethers.utils.parseUnits(inputToEthPrice),
+                    ethers.utils.parseUnits(outputToEthPrice),
+                    ethers.constants.Zero,
+                    signer.account.address,
+                ),
+                config.viemClient,
+                config.dispair,
             ),
         },
         signedContext: [],
@@ -142,16 +146,20 @@ export async function dryrun({
     // sender output which is already called above
     if (config.gasCoveragePercentage !== "0") {
         const headroom = (Number(config.gasCoveragePercentage) * 1.03).toFixed();
-        task.evaluable.bytecode = getWithdrawEnsureBytecode(
-            signer.account.address,
-            orderPairObject.buyToken,
-            orderPairObject.sellToken,
-            inputBalance,
-            outputBalance,
-            ethers.utils.parseUnits(inputToEthPrice),
-            ethers.utils.parseUnits(outputToEthPrice),
-            gasCost.mul(headroom).div("100"),
-            signer.account.address,
+        task.evaluable.bytecode = await parseRainlang(
+            await getWithdrawEnsureRainlang(
+                signer.account.address,
+                orderPairObject.buyToken,
+                orderPairObject.sellToken,
+                inputBalance,
+                outputBalance,
+                ethers.utils.parseUnits(inputToEthPrice),
+                ethers.utils.parseUnits(outputToEthPrice),
+                gasCost.mul(headroom).div("100"),
+                signer.account.address,
+            ),
+            config.viemClient,
+            config.dispair,
         );
         withdrawOutputCalldata = obInterface.encodeFunctionData("withdraw2", [
             orderPairObject.sellToken,
@@ -171,16 +179,20 @@ export async function dryrun({
                 .div(100);
             rawtx.gas = gasLimit.toBigInt();
             gasCost = gasLimit.mul(gasPrice).add(estimation.l1Cost);
-            task.evaluable.bytecode = getWithdrawEnsureBytecode(
-                signer.account.address,
-                orderPairObject.buyToken,
-                orderPairObject.sellToken,
-                inputBalance,
-                outputBalance,
-                ethers.utils.parseUnits(inputToEthPrice),
-                ethers.utils.parseUnits(outputToEthPrice),
-                gasCost.mul(config.gasCoveragePercentage).div("100"),
-                signer.account.address,
+            task.evaluable.bytecode = await parseRainlang(
+                await getWithdrawEnsureRainlang(
+                    signer.account.address,
+                    orderPairObject.buyToken,
+                    orderPairObject.sellToken,
+                    inputBalance,
+                    outputBalance,
+                    ethers.utils.parseUnits(inputToEthPrice),
+                    ethers.utils.parseUnits(outputToEthPrice),
+                    gasCost.mul(config.gasCoveragePercentage).div("100"),
+                    signer.account.address,
+                ),
+                config.viemClient,
+                config.dispair,
             );
             withdrawOutputCalldata = obInterface.encodeFunctionData("withdraw2", [
                 orderPairObject.sellToken,

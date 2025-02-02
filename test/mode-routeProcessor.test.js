@@ -6,7 +6,7 @@ const {
     ethers,
     utils: { formatUnits },
 } = require("ethers");
-const { getBountyEnsureBytecode } = require("../src/config");
+const { getBountyEnsureRainlang, parseRainlang } = require("../src/task");
 const {
     dryrun,
     findOpp,
@@ -19,6 +19,7 @@ let signer = {};
 let dataFetcher = {};
 const viemClient = {
     getBlockNumber: async () => BigInt(oppBlockNumber),
+    readContract: async () => "0x1234",
 };
 
 const oppBlockNumber = 123456;
@@ -38,6 +39,7 @@ const {
     getCurrentPrice,
     getAmountOut,
 } = testData;
+config.viemClient = viemClient;
 
 describe("Test route processor dryrun", async function () {
     beforeEach(() => {
@@ -80,13 +82,17 @@ describe("Test route processor dryrun", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(ethPrice),
-                    ethers.constants.Zero,
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(ethPrice),
+                        ethers.constants.Zero,
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -197,14 +203,17 @@ describe("Test route processor dryrun", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                    bytecode: getBountyEnsureBytecode(
-                        ethers.utils.parseUnits(ethPrice),
-                        ethers.constants.Zero,
-                        ethers.constants.Zero,
-                        signer.account.address,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
+                    bytecode: await parseRainlang(
+                        await getBountyEnsureRainlang(
+                            ethers.utils.parseUnits(ethPrice),
+                            ethers.constants.Zero,
+                            ethers.constants.Zero,
+                            signer.account.address,
+                        ),
+                        viemClient,
+                        config.dispair,
                     ),
                 },
                 signedContext: [],
@@ -281,13 +290,17 @@ describe("Test route processor find opp", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(ethPrice),
-                    ethers.constants.Zero,
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(ethPrice),
+                        ethers.constants.Zero,
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -364,13 +377,17 @@ describe("Test route processor find opp", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(ethPrice),
-                    ethers.constants.Zero,
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(ethPrice),
+                        ethers.constants.Zero,
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -447,14 +464,17 @@ describe("Test route processor find opp", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                    bytecode: getBountyEnsureBytecode(
-                        ethers.utils.parseUnits(ethPrice),
-                        ethers.constants.Zero,
-                        ethers.constants.Zero,
-                        signer.account.address,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
+                    bytecode: await parseRainlang(
+                        await getBountyEnsureRainlang(
+                            ethers.utils.parseUnits(ethPrice),
+                            ethers.constants.Zero,
+                            ethers.constants.Zero,
+                            signer.account.address,
+                        ),
+                        viemClient,
+                        config.dispair,
                     ),
                 },
                 signedContext: [],
@@ -578,13 +598,17 @@ describe("Test find opp with retries", async function () {
         };
         const task = {
             evaluable: {
-                interpreter: orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                bytecode: getBountyEnsureBytecode(
-                    ethers.utils.parseUnits(ethPrice),
-                    ethers.constants.Zero,
-                    gasLimitEstimation.mul(gasPrice),
-                    signer.account.address,
+                interpreter: config.dispair.interpreter,
+                store: config.dispair.store,
+                bytecode: await parseRainlang(
+                    await getBountyEnsureRainlang(
+                        ethers.utils.parseUnits(ethPrice),
+                        ethers.constants.Zero,
+                        gasLimitEstimation.mul(gasPrice),
+                        signer.account.address,
+                    ),
+                    viemClient,
+                    config.dispair,
                 ),
             },
             signedContext: [],
@@ -658,14 +682,17 @@ describe("Test find opp with retries", async function () {
             };
             const task = {
                 evaluable: {
-                    interpreter:
-                        orderPairObject.takeOrders[0].takeOrder.order.evaluable.interpreter,
-                    store: orderPairObject.takeOrders[0].takeOrder.order.evaluable.store,
-                    bytecode: getBountyEnsureBytecode(
-                        ethers.utils.parseUnits(ethPrice),
-                        ethers.constants.Zero,
-                        ethers.constants.Zero,
-                        signer.account.address,
+                    interpreter: config.dispair.interpreter,
+                    store: config.dispair.store,
+                    bytecode: await parseRainlang(
+                        await getBountyEnsureRainlang(
+                            ethers.utils.parseUnits(ethPrice),
+                            ethers.constants.Zero,
+                            ethers.constants.Zero,
+                            signer.account.address,
+                        ),
+                        viemClient,
+                        config.dispair,
                     ),
                 },
                 signedContext: [],
